@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Perfume ERP PRO</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+.card{
+ background:white;
+ border-radius:16px;
+ padding:16px;
+ box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+.input{
+ width:100%;
+ padding:10px;
+ border:1px solid #ddd;
+ border-radius:10px;
+}
+.modal{
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.5);
+ display:none;
+ justify-content:center;
+ align-items:center;
+}
+.modal-box{
+ background:white;
+ padding:20px;
+ border-radius:12px;
+ width:95%;
+ max-width:450px;
+}
+tr:hover{background:#f9fafb;cursor:pointer}
+</style>
+</head>
+
+<body class="bg-gray-100 p-4">
+
+<h1 class="text-3xl font-bold mb-5">Perfume ERP PRO</h1>
+
+<!-- DASHBOARD -->
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+
+<div class="card">Investment <p id="investment"></p></div>
+<div class="card">Sales <p id="sales"></p></div>
+<div class="card">Profit <p id="profit"></p></div>
+<div class="card">ROI <p id="roi"></p></div>
+
+</div>
+
+<!-- STOCK ENTRY -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-3">Stock Entry</h2>
+
+<select id="category" onchange="changeFields()" class="input mb-2">
+<option>Raw Perfume</option>
+<option>Attar Oil</option>
+<option>Bottle</option>
+<option>Pouch</option>
+<option>Box</option>
+<option>Aroma Chemical</option>
+<option>Equipment</option>
+<option>Misc</option>
+</select>
+
+<div id="dynamicFields" class="grid gap-2"></div>
+
+<button onclick="addStock()" class="bg-blue-600 text-white px-4 py-2 rounded mt-3">
+Add Stock
+</button>
+
+<p id="stockMsg" class="text-green-600 mt-2"></p>
+
+</div>
+
+<!-- SALES ENTRY -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-3">Sales Entry</h2>
+
+<div class="grid md:grid-cols-3 gap-2">
+
+<input id="productName" class="input" placeholder="Product">
+<input id="customer" class="input" placeholder="Customer">
+<input id="reference" class="input" placeholder="Reference">
+<input id="mfg" class="input" placeholder="Manufacturing Cost">
+<input id="sold" class="input" placeholder="Sold Price">
+<input id="date" type="date" class="input">
+
+</div>
+
+<button onclick="addSale()" class="bg-green-600 text-white px-4 py-2 rounded mt-3">
+Add Sale
+</button>
+
+</div>
+
+<!-- STOCK TABLE -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-2">Stock Records</h2>
+<input id="stockFilter" class="input mb-2" placeholder="Search" oninput="loadAll()">
+
+<table class="w-full">
+<thead><tr class="bg-gray-100"><th>Name</th><th>Category</th><th>Units</th><th>Cost</th></tr></thead>
+<tbody id="stockTable"></tbody>
+</table>
+
+</div>
+
+<!-- SALES TABLE -->
+
+<div class="card">
+
+<h2 class="text-xl font-bold mb-2">Sales Records</h2>
+<input id="salesFilter" class="input mb-2" placeholder="Search" oninput="loadAll()">
+
+<table class="w-full">
+<thead><tr class="bg-gray-100"><th>Product</th><th>Customer</th><th>Profit</th></tr></thead>
+<tbody id="salesTable"></tbody>
+</table>
+
+</div>
+
+<!-- ================= ANALYTICS ================= -->
+
+<div class="card mt-6">
+
+<h2 class="text-xl font-bold mb-3">
+Monthly Analytics
+</h2>
+
+<div class="overflow-auto mb-4">
+<table class="w-full text-sm">
+<thead class="bg-gray-100">
+<tr>
+<th>Month</th>
+<th>Investment</th>
+<th>Sales</th>
+<th>Profit</th>
+<th>ROI</th>
+</tr>
+</thead>
+
+<tbody id="monthTable"></tbody>
+</table>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4">
+
+<div class="card">
+<h3 class="font-bold mb-2">Sales vs Investment</h3>
+<canvas id="salesChartCanvas"></canvas>
+</div>
+
+<div class="card">
+<h3 class="font-bold mb-2">Break-even Curve</h3>
+<canvas id="breakChartCanvas"></canvas>
+</div>
+
+</div>
+
+</div>
+
+<!-- ChartJS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- MODAL -->
+
+<div id="modal" class="modal">
+<div class="modal-box">
+
+<h2 id="modalTitle"></h2>
+<div id="modalBody" class="grid gap-2"></div>
+
+<div class="flex gap-2 mt-3">
+<button onclick="saveModal()" class="bg-blue-600 text-white px-3 py-2 rounded">Update</button>
+<button onclick="deleteModal()" class="bg-red-600 text-white px-3 py-2 rounded">Delete</button>
+<button onclick="closeModal()" class="bg-gray-500 text-white px-3 py-2 rounded ml-auto">Close</button>
+</div>
+
+</div>
+</div>
+
+<script>
+
+date.value = new Date().toISOString().split("T")[0];
+
+let editType="";
+let editId="";
+let salesChart=null;
+let breakChart=null;
+
+/* ================= DYNAMIC STOCK FIELDS ================= */
+
+function changeFields(){
+
+ const c = category.value;
+ let html = `<input id="name" class="input" placeholder="Name">`;
+
+ if(c==="Attar Oil"){
+  html += `
+  <input id="designerName" class="input" placeholder="Designer Name">
+  <input id="supplier" class="input" placeholder="Supplier">
+
+  <select id="size" class="input">
+   <option value="25">25 ml</option>
+   <option value="50">50 ml</option>
+   <option value="100">100 ml</option>
+   <option value="250">250 ml</option>
+   <option value="500">500 ml</option>
+   <option value="1000">1000 ml</option>
+  </select>`;
+ }
+
+ if(["Bottle","Pouch","Box"].includes(c)){
+  html += `
+  <select id="subCategory" class="input">
+   <option>ECO</option>
+   <option>Moderate</option>
+   <option>Premium</option>
+  </select>
+
+  <select id="type" class="input">
+   <option>Perfume</option>
+   <option>Attar</option>
+  </select>`;
+ }
+
+ html += `
+ <input id="units" class="input" type="number" placeholder="Units">
+ <input id="cost" class="input" type="number" placeholder="Cost">`;
+
+ html += `
+<input id="purchaseDate" class="input" type="date">
+`;
+ dynamicFields.innerHTML = html;
+}
+
+changeFields();
+
+/* ================= ADD STOCK ================= */
+
+async function addStock(){
+
+ const body={
+  category:category.value,
+  name:document.getElementById("name")?.value || "",
+  designerName:document.getElementById("designerName")?.value || "",
+  supplier:document.getElementById("supplier")?.value || "",
+  subCategory:document.getElementById("subCategory")?.value || "",
+  type:document.getElementById("type")?.value || "",
+  size_ml:Number(document.getElementById("size")?.value || 0),
+  units:Number(document.getElementById("units")?.value || 0),
+  cost:Number(document.getElementById("cost")?.value || 0),
+  purchaseDate:
+ document.getElementById("purchaseDate")?.value
+ || new Date(),
+ };
+
+ if(!body.name){
+  stockMsg.innerText="Name required";
+  return;
+ }
+
+ await fetch("/api/stock",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(body)
+ });
+
+ stockMsg.innerText="Added";
+ loadAll();
+}
+
+/* ================= ADD SALE ================= */
+
+async function addSale(){
+
+ await fetch("/api/sales",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({
+   productName:productName.value,
+   customerName:customer.value,
+   referenceSource:reference.value,
+   manufacturingCost:Number(mfg.value),
+   soldPrice:Number(sold.value),
+   saleDate:date.value
+  })
+ });
+
+ loadAll();
+}
+
+/* ================= MODAL ================= */
+
+function openModal(type,data){
+
+ editType=type;
+ editId=data._id;
+
+ modal.style.display="flex";
+
+ if(type==="stock"){
+
+  modalTitle.innerText="Edit Stock";
+
+  modalBody.innerHTML=`
+  <input id="m_name" class="input" value="${data.name||""}">
+  <input id="m_units" class="input" type="number" value="${data.units||0}">
+  <input id="m_cost" class="input" type="number" value="${data.cost||0}">
+  <input id="m_designer" class="input" value="${data.designerName||""}">
+  <input id="m_supplier" class="input" value="${data.supplier||""}">
+  <input id="m_size" class="input" type="number" value="${data.size_ml||0}">
+  `;
+
+ }else{
+
+  modalTitle.innerText="Edit Sale";
+
+  modalBody.innerHTML=`
+  <input id="m_name" class="input" value="${data.productName||""}">
+  <input id="m_customer" class="input" value="${data.customerName||""}">
+  <input id="m_reference" class="input" value="${data.referenceSource||""}">
+  <input id="m_mfg" class="input" type="number" value="${data.manufacturingCost||0}">
+  <input id="m_sold" class="input" type="number" value="${data.soldPrice||0}">
+  `;
+ }
+}
+
+function closeModal(){
+ modal.style.display="none";
+}
+
+/* ================= SAVE ================= */
+
+async function saveModal(){
+
+ let body={};
+
+ if(editType==="stock"){
+  body={
+   name:m_name.value,
+   units:Number(m_units.value),
+   cost:Number(m_cost.value),
+   designerName:m_designer?.value||"",
+   supplier:m_supplier?.value||"",
+   size_ml:Number(m_size?.value||0)
+  };
+ }
+
+ if(editType==="sales"){
+  body={
+   productName:m_name.value,
+   customerName:m_customer.value,
+   referenceSource:m_reference.value,
+   manufacturingCost:Number(m_mfg.value),
+   soldPrice:Number(m_sold.value)
+  };
+ }
+
+ await fetch(`/api/${editType}/${editId}`,{
+  method:"PUT",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(body)
+ });
+
+ closeModal();
+ loadAll();
+}
+
+/* ================= DELETE ================= */
+
+async function deleteModal(){
+
+ await fetch(`/api/${editType}/${editId}`,{
+  method:"DELETE"
+ });
+
+ closeModal();
+ loadAll();
+}
+
+/* ================= LOAD DATA ================= */
+
+async function loadAll(){
+
+ const d = await (await fetch("/api/dashboard")).json();
+
+ investment.innerText=d.totalInvestment.toFixed(2);
+ sales.innerText=d.totalSales.toFixed(2);
+ profit.innerText=d.totalProfit.toFixed(2);
+ roi.innerText=d.roi.toFixed(2);
+
+ /* ===== GET FILTER VALUES ===== */
+
+ const stockFilterVal =
+  document.getElementById("stockFilter")
+  ?.value.toLowerCase() || "";
+
+ const salesFilterVal =
+  document.getElementById("salesFilter")
+  ?.value.toLowerCase() || "";
+
+ /* ===== STOCK ===== */
+
+ const stock = await (await fetch("/api/stock")).json();
+
+ const filteredStock = stock.filter(s=>{
+
+  const name = (s.name || "").toLowerCase();
+  const cat = (s.category || "").toLowerCase();
+
+  return name.includes(stockFilterVal)
+      || cat.includes(stockFilterVal);
+ });
+
+ stockTable.innerHTML = filteredStock.map(s=>`
+ <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+ <td>${s.name||""}</td>
+ <td>${s.category||""}</td>
+ <td>${s.units||0}</td>
+ <td>${s.cost||0}</td>
+ </tr>
+ `).join("");
+
+ /* ===== SALES ===== */
+
+ const salesData = await (await fetch("/api/sales")).json();
+
+ const filteredSales = salesData.filter(s=>{
+
+  const product = (s.productName || "").toLowerCase();
+  const customer = (s.customerName || "").toLowerCase();
+
+  return product.includes(salesFilterVal)
+      || customer.includes(salesFilterVal);
+ });
+
+ salesTable.innerHTML = filteredSales.map(s=>`
+ <tr onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+ <td>${s.productName||""}</td>
+ <td>${s.customerName||""}</td>
+ <td>${s.profit?.toFixed(2)||0}</td>
+ </tr>
+ `).join("");
+
+ /* ===== ANALYTICS ===== */
+
+ loadAnalytics(stock,salesData);
+}
+
+/* ================= ANALYTICS ================= */
+
+function loadAnalytics(stock,sales){
+
+ const months={};
+
+ /* ===== STOCK GROUP ===== */
+ stock.forEach(s=>{
+
+  // Mongo ObjectID date fallback
+ let d = new Date(s.purchaseDate || Date.now());
+
+  const m=d.toLocaleString("default",{
+   month:"short",
+   year:"numeric"
+  });
+
+  if(!months[m])
+   months[m]={investment:0,sales:0,profit:0};
+
+  months[m].investment += Number(s.cost||0);
+ });
+
+ /* ===== SALES GROUP ===== */
+ sales.forEach(s=>{
+
+  const d = new Date(s.saleDate || Date.now());
+
+  const m=d.toLocaleString("default",{
+   month:"short",
+   year:"numeric"
+  });
+
+  if(!months[m])
+   months[m]={investment:0,sales:0,profit:0};
+
+  months[m].sales += Number(s.soldPrice||0);
+  months[m].profit += Number(s.profit||0);
+ });
+
+ const labels=Object.keys(months);
+
+ const investments=labels.map(m=>months[m].investment);
+ const salesArr=labels.map(m=>months[m].sales);
+ const profits=labels.map(m=>months[m].profit);
+
+ /* ===== TABLE ===== */
+
+ monthTable.innerHTML = labels.map(m=>{
+
+  const roi =
+   months[m].investment
+   ? (months[m].sales/months[m].investment).toFixed(2)
+   : 0;
+
+  return `
+  <tr>
+   <td>${m}</td>
+   <td>${months[m].investment.toFixed(2)}</td>
+   <td>${months[m].sales.toFixed(2)}</td>
+   <td>${months[m].profit.toFixed(2)}</td>
+   <td>${roi}</td>
+  </tr>`;
+ }).join("");
+
+ /* ===== BAR CHART ===== */
+
+ if(salesChart) salesChart.destroy();
+
+ salesChart = new Chart(
+ document.getElementById("salesChartCanvas"),
+ {
+  type:"bar",
+  data:{
+   labels:labels,
+   datasets:[
+    {label:"Investment",data:investments},
+    {label:"Sales",data:salesArr}
+   ]
+  }
+ });
+
+ /* ===== BREAK EVEN CURVE ===== */
+
+ let cumInv=[], cumSales=[];
+ let a=0,b=0;
+
+ labels.forEach((m,i)=>{
+  a+=investments[i];
+  b+=salesArr[i];
+  cumInv.push(a);
+  cumSales.push(b);
+ });
+
+ if(breakChart) breakChart.destroy();
+
+ breakChart = new Chart(
+ document.getElementById("breakChartCanvas"),
+ {
+  type:"line",
+  data:{
+   labels:labels,
+   datasets:[
+    {label:"Cumulative Investment",data:cumInv},
+    {label:"Cumulative Sales",data:cumSales}
+   ]
+  }
+ });
+}
+
+loadAll();
+
+</script>
+
+</body>
+</html>
