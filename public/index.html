@@ -59,8 +59,8 @@ tr:hover{background:#f9fafb;cursor:pointer}
 <h2 class="text-xl font-bold mb-3">Stock Entry</h2>
 
 <select id="category" onchange="changeFields()" class="input mb-2">
-<option>Raw Perfume</option>
 <option>Attar Oil</option>
+<option>Raw Perfume</option>
 <option>Bottle</option>
 <option>Pouch</option>
 <option>Box</option>
@@ -79,24 +79,91 @@ Add Stock
 
 </div>
 
-<!-- SALES ENTRY -->
+<!-- ================= SALES ENTRY ================= -->
 
 <div class="card mb-6">
 
-<h2 class="text-xl font-bold mb-3">Sales Entry</h2>
+<h2 class="text-xl font-bold mb-3">Sales Entry (Auto Cost)</h2>
 
 <div class="grid md:grid-cols-3 gap-2">
 
-<input id="productName" class="input" placeholder="Product">
+<!-- PRODUCT TYPE -->
+<select id="saleCat" class="input" onchange="changeSaleMode()">
+<option value="Perfume">Perfume</option>
+<option value="Attar">Attar</option>
+</select>
+
+<!-- PRODUCT NAME (FROM ATTAR OIL STOCK) -->
+<input id="productName"
+list="oilList"
+class="input"
+placeholder="Attar Oil Name"
+oninput="calculateMfgCost()">
+
+<datalist id="oilList"></datalist>
+
+<!-- SIZE -->
+<select id="saleSize" class="input"
+onchange="calculateMfgCost()"></select>
+
+<!-- OIL % (ONLY PERFUME) -->
+<input id="oilPercent"
+class="input"
+type="number"
+value="45"
+placeholder="Oil %"
+oninput="calculateMfgCost()">
+
+<!-- BOTTLE CATEGORY -->
+<select id="bottleCat"
+class="input"
+onchange="calculateMfgCost()">
+
+<option value="">Bottle Category</option>
+<option>ECO</option>
+<option>Premium</option>
+
+</select>
+
+<!-- BOX CATEGORY -->
+<select id="boxCat"
+class="input"
+onchange="calculateMfgCost()">
+
+<option value="">Box Category (Optional)</option>
+<option>ECO</option>
+<option>Premium</option>
+
+</select>
+
+<!-- OTHER COST -->
+<input id="otherCost"
+type="number"
+class="input"
+placeholder="Other Cost"
+oninput="calculateMfgCost()">
+
+<!-- AUTO MFG COST -->
+<input id="mfg"
+class="input bg-gray-100 font-bold"
+readonly
+placeholder="Auto Manufacturing Cost">
+
+<!-- SOLD -->
+<input id="sold"
+class="input"
+type="number"
+placeholder="Sold Price">
+
 <input id="customer" class="input" placeholder="Customer">
 <input id="reference" class="input" placeholder="Reference">
-<input id="mfg" class="input" placeholder="Manufacturing Cost">
-<input id="sold" class="input" placeholder="Sold Price">
+
 <input id="date" type="date" class="input">
 
 </div>
 
-<button onclick="addSale()" class="bg-green-600 text-white px-4 py-2 rounded mt-3">
+<button onclick="addSale()"
+class="bg-green-600 text-white px-4 py-2 rounded mt-3">
 Add Sale
 </button>
 
@@ -190,26 +257,45 @@ Monthly Analytics
 </div>
 </div>
 
+<datalist id="nameList"></datalist>
+<datalist id="designerList"></datalist>
+<datalist id="supplierList"></datalist>
+
 <script>
 
 date.value = new Date().toISOString().split("T")[0];
 
-let editType="";
-let editId="";
+let editType="", editId="";
 let salesChart=null;
 let breakChart=null;
 
-/* ================= DYNAMIC STOCK FIELDS ================= */
+let stockCache=[];
+
+const des = document.getElementById("designerName");
+const sup = document.getElementById("supplier");
+const siz = document.getElementById("size");
+
+if(des) des.value = f.designerName || "";
+if(sup) sup.value = f.supplier || "";
+if(siz) siz.value = f.size_ml || "";
+
+/* ================= STOCK FIELDS ================= */
 
 function changeFields(){
 
  const c = category.value;
- let html = `<input id="name" class="input" placeholder="Name">`;
+ let html = `
+ <input id="name" list="nameList"
+ oninput="autoFillStock()"
+ class="input" placeholder="Name">`;
 
  if(c==="Attar Oil"){
   html += `
-  <input id="designerName" class="input" placeholder="Designer Name">
-  <input id="supplier" class="input" placeholder="Supplier">
+  <input id="designerName" list="designerList"
+  class="input" placeholder="Designer">
+
+  <input id="supplier" list="supplierList"
+  class="input" placeholder="Supplier">
 
   <select id="size" class="input">
    <option value="25">25 ml</option>
@@ -237,15 +323,54 @@ function changeFields(){
 
  html += `
  <input id="units" class="input" type="number" placeholder="Units">
- <input id="cost" class="input" type="number" placeholder="Cost">`;
+ <input id="cost" class="input" type="number" placeholder="Cost">
+ <input id="purchaseDate" class="input" type="date">
+ `;
 
- html += `
-<input id="purchaseDate" class="input" type="date">
-`;
  dynamicFields.innerHTML = html;
 }
 
 changeFields();
+
+/* ================= DROPDOWNS ================= */
+
+async function loadDropdowns(){
+
+ const stock = await (await fetch("/api/stock")).json();
+ stockCache = stock;
+
+ nameList.innerHTML =
+ [...new Set(stock.map(s=>s.name).filter(Boolean))]
+ .map(v=>`<option value="${v}">`).join("");
+
+ designerList.innerHTML =
+ [...new Set(stock.map(s=>s.designerName).filter(Boolean))]
+ .map(v=>`<option value="${v}">`).join("");
+
+ supplierList.innerHTML =
+ [...new Set(stock.map(s=>s.supplier).filter(Boolean))]
+ .map(v=>`<option value="${v}">`).join("");
+
+ oilList.innerHTML =
+ stock.filter(s=>s.category==="Attar Oil")
+ .map(v=>`<option value="${v.name}">`).join("");
+}
+
+/* ================= AUTO FILL ================= */
+
+function autoFillStock(){
+
+ const n = name.value.toLowerCase();
+ const f = stockCache.find(
+ s=>(s.name||"").toLowerCase()===n
+ );
+
+ if(!f) return;
+
+ if(designerName) designerName.value=f.designerName||"";
+ if(supplier) supplier.value=f.supplier||"";
+ if(size) size.value=f.size_ml||"";
+}
 
 /* ================= ADD STOCK ================= */
 
@@ -253,17 +378,15 @@ async function addStock(){
 
  const body={
   category:category.value,
-  name:document.getElementById("name")?.value || "",
-  designerName:document.getElementById("designerName")?.value || "",
-  supplier:document.getElementById("supplier")?.value || "",
-  subCategory:document.getElementById("subCategory")?.value || "",
-  type:document.getElementById("type")?.value || "",
-  size_ml:Number(document.getElementById("size")?.value || 0),
-  units:Number(document.getElementById("units")?.value || 0),
-  cost:Number(document.getElementById("cost")?.value || 0),
-  purchaseDate:
- document.getElementById("purchaseDate")?.value
- || new Date(),
+  name:name?.value||"",
+  designerName:designerName?.value||"",
+  supplier:supplier?.value||"",
+  subCategory:subCategory?.value||"",
+  type:type?.value||"",
+  size_ml:Number(size?.value||0),
+  units:Number(units?.value||0),
+  cost:Number(cost?.value||0),
+  purchaseDate:purchaseDate?.value||new Date()
  };
 
  if(!body.name){
@@ -278,10 +401,138 @@ async function addStock(){
  });
 
  stockMsg.innerText="Added";
+
+ await loadDropdowns();
  loadAll();
 }
 
 /* ================= ADD SALE ================= */
+
+function changeSaleSize(){
+
+ saleSize.innerHTML="";
+
+ const arr =
+ saleCat.value==="Attar"
+ ? [3,6,8,12,15]
+ : [8,20,30,50,100];
+
+ arr.forEach(v=>{
+  saleSize.innerHTML +=
+  `<option value="${v}">${v} ml</option>`;
+ });
+}
+
+changeSaleSize();
+
+
+
+function changeSaleMode(){
+
+ saleSize.innerHTML="";
+
+ const arr =
+ saleCat.value==="Attar"
+ ? [3,6,8,12,15]
+ : [8,20,30,50,100];
+
+ arr.forEach(v=>{
+  saleSize.innerHTML += `<option value="${v}">${v} ml</option>`;
+ });
+
+ // hide oil % for Attar
+ oilPercent.style.display =
+ saleCat.value==="Attar" ? "none":"block";
+
+ calculateMfgCost();
+}
+
+changeSaleMode();
+
+function getAverageOilCost(name){
+
+ const oils = stockCache.filter(s=>
+ s.category==="Attar Oil" &&
+ s.name===name
+ );
+
+ let totalCost=0, totalMl=0;
+
+ oils.forEach(o=>{
+  totalCost += Number(o.cost||0);
+  totalMl += Number(o.size_ml||0);
+ });
+
+ return totalMl ? totalCost/totalMl : 0;
+}
+
+function getEthanolCost(){
+
+ const e = stockCache.find(s=>
+ (s.name||"").toLowerCase().includes("ethanol")
+ );
+
+ return e?.pricePerUnit || 0;
+}
+
+function getPackagingCost(){
+
+ let cost=0;
+
+ const bottle = stockCache.find(s=>
+ s.category==="Bottle" &&
+ s.subCategory===bottleCat.value
+ );
+
+ if(bottle) cost += bottle.pricePerUnit||0;
+
+ if(boxCat.value){
+
+  const box = stockCache.find(s=>
+  s.category==="Box" &&
+  s.subCategory===boxCat.value
+  );
+
+  if(box) cost += box.pricePerUnit||0;
+ }
+
+ return cost;
+}
+
+
+function calculateMfgCost(){
+
+ const oilName = productName.value;
+ const qty = Number(saleSize.value||0);
+
+ if(!oilName || !qty) return;
+
+ const oilCost = getAverageOilCost(oilName);
+ const ethanolCost = getEthanolCost();
+
+ let total=0;
+
+ if(saleCat.value==="Perfume"){
+
+  const oilPct =
+  Number(oilPercent.value||45)/100;
+
+  const ethanolPct = 1 - oilPct;
+
+  total += qty*oilPct*oilCost;
+  total += qty*ethanolPct*ethanolCost;
+
+ }else{
+  // ATTAR
+  total += qty*oilCost;
+ }
+
+ total += getPackagingCost();
+ total += Number(otherCost.value||0);
+
+ mfg.value = total.toFixed(2);
+}
+
 
 async function addSale(){
 
@@ -289,11 +540,17 @@ async function addSale(){
   method:"POST",
   headers:{'Content-Type':'application/json'},
   body:JSON.stringify({
+
+   category:saleCat.value,
    productName:productName.value,
-   customerName:customer.value,
-   referenceSource:reference.value,
+   size_ml:Number(saleSize.value),
+
    manufacturingCost:Number(mfg.value),
    soldPrice:Number(sold.value),
+
+   customerName:customer.value,
+   referenceSource:reference.value,
+
    saleDate:date.value
   })
  });
@@ -311,37 +568,26 @@ function openModal(type,data){
  modal.style.display="flex";
 
  if(type==="stock"){
-
   modalTitle.innerText="Edit Stock";
 
   modalBody.innerHTML=`
   <input id="m_name" class="input" value="${data.name||""}">
   <input id="m_units" class="input" type="number" value="${data.units||0}">
   <input id="m_cost" class="input" type="number" value="${data.cost||0}">
-  <input id="m_designer" class="input" value="${data.designerName||""}">
-  <input id="m_supplier" class="input" value="${data.supplier||""}">
-  <input id="m_size" class="input" type="number" value="${data.size_ml||0}">
   `;
-
  }else{
-
   modalTitle.innerText="Edit Sale";
 
   modalBody.innerHTML=`
   <input id="m_name" class="input" value="${data.productName||""}">
   <input id="m_customer" class="input" value="${data.customerName||""}">
-  <input id="m_reference" class="input" value="${data.referenceSource||""}">
   <input id="m_mfg" class="input" type="number" value="${data.manufacturingCost||0}">
   <input id="m_sold" class="input" type="number" value="${data.soldPrice||0}">
   `;
  }
 }
 
-function closeModal(){
- modal.style.display="none";
-}
-
-/* ================= SAVE ================= */
+function closeModal(){ modal.style.display="none"; }
 
 async function saveModal(){
 
@@ -351,10 +597,7 @@ async function saveModal(){
   body={
    name:m_name.value,
    units:Number(m_units.value),
-   cost:Number(m_cost.value),
-   designerName:m_designer?.value||"",
-   supplier:m_supplier?.value||"",
-   size_ml:Number(m_size?.value||0)
+   cost:Number(m_cost.value)
   };
  }
 
@@ -362,7 +605,6 @@ async function saveModal(){
   body={
    productName:m_name.value,
    customerName:m_customer.value,
-   referenceSource:m_reference.value,
    manufacturingCost:Number(m_mfg.value),
    soldPrice:Number(m_sold.value)
   };
@@ -378,85 +620,35 @@ async function saveModal(){
  loadAll();
 }
 
-/* ================= DELETE ================= */
-
-async function deleteModal(){
-
- await fetch(`/api/${editType}/${editId}`,{
-  method:"DELETE"
- });
-
- closeModal();
- loadAll();
-}
-
 /* ================= LOAD DATA ================= */
 
 async function loadAll(){
 
- const d = await (await fetch("/api/dashboard")).json();
-
- investment.innerText=d.totalInvestment.toFixed(2);
- sales.innerText=d.totalSales.toFixed(2);
- profit.innerText=d.totalProfit.toFixed(2);
- roi.innerText=d.roi.toFixed(2);
-
- /* ===== GET FILTER VALUES ===== */
-
- const stockFilterVal =
-  document.getElementById("stockFilter")
-  ?.value.toLowerCase() || "";
-
- const salesFilterVal =
-  document.getElementById("salesFilter")
-  ?.value.toLowerCase() || "";
-
- /* ===== STOCK ===== */
-
  const stock = await (await fetch("/api/stock")).json();
+ const sales = await (await fetch("/api/sales")).json();
+ const dash = await (await fetch("/api/dashboard")).json();
 
- const filteredStock = stock.filter(s=>{
+ investment.innerText=dash.totalInvestment.toFixed(2);
+ sales.innerText=dash.totalSales.toFixed(2);
+ profit.innerText=dash.totalProfit.toFixed(2);
+ roi.innerText=dash.roi.toFixed(2);
 
-  const name = (s.name || "").toLowerCase();
-  const cat = (s.category || "").toLowerCase();
-
-  return name.includes(stockFilterVal)
-      || cat.includes(stockFilterVal);
- });
-
- stockTable.innerHTML = filteredStock.map(s=>`
- <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+stockTable.innerHTML = stock.map(s=>`
+<tr onclick="openModal('stock',${JSON.stringify(s).replace(/"/g,'&quot;')})">
  <td>${s.name||""}</td>
  <td>${s.category||""}</td>
  <td>${s.units||0}</td>
  <td>${s.cost||0}</td>
- </tr>
- `).join("");
+ </tr>`).join("");
 
- /* ===== SALES ===== */
-
- const salesData = await (await fetch("/api/sales")).json();
-
- const filteredSales = salesData.filter(s=>{
-
-  const product = (s.productName || "").toLowerCase();
-  const customer = (s.customerName || "").toLowerCase();
-
-  return product.includes(salesFilterVal)
-      || customer.includes(salesFilterVal);
- });
-
- salesTable.innerHTML = filteredSales.map(s=>`
- <tr onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+ salesTable.innerHTML = sales.map(s=>`
+ <tr onclick='openModal("sales",${JSON.stringify(s)})'>
  <td>${s.productName||""}</td>
  <td>${s.customerName||""}</td>
  <td>${s.profit?.toFixed(2)||0}</td>
- </tr>
- `).join("");
+ </tr>`).join("");
 
- /* ===== ANALYTICS ===== */
-
- loadAnalytics(stock,salesData);
+ loadAnalytics(stock,sales);
 }
 
 /* ================= ANALYTICS ================= */
@@ -465,110 +657,67 @@ function loadAnalytics(stock,sales){
 
  const months={};
 
- /* ===== STOCK GROUP ===== */
  stock.forEach(s=>{
-
-  // Mongo ObjectID date fallback
- let d = new Date(s.purchaseDate || Date.now());
-
-  const m=d.toLocaleString("default",{
-   month:"short",
-   year:"numeric"
-  });
-
-  if(!months[m])
-   months[m]={investment:0,sales:0,profit:0};
-
-  months[m].investment += Number(s.cost||0);
+  const d = s.purchaseDate ? new Date(s.purchaseDate) : new Date();
+  const k=d.getFullYear()+"-"+(d.getMonth()+1);
+  if(!months[k]) months[k]={investment:0,sales:0,profit:0};
+  months[k].investment+=Number(s.cost||0);
  });
 
- /* ===== SALES GROUP ===== */
  sales.forEach(s=>{
-
-  const d = new Date(s.saleDate || Date.now());
-
-  const m=d.toLocaleString("default",{
-   month:"short",
-   year:"numeric"
-  });
-
-  if(!months[m])
-   months[m]={investment:0,sales:0,profit:0};
-
-  months[m].sales += Number(s.soldPrice||0);
-  months[m].profit += Number(s.profit||0);
+  const d=new Date(s.saleDate||Date.now());
+  const k=d.getFullYear()+"-"+(d.getMonth()+1);
+  if(!months[k]) months[k]={investment:0,sales:0,profit:0};
+  months[k].sales+=Number(s.soldPrice||0);
+  months[k].profit+=Number(s.profit||0);
  });
 
- const labels=Object.keys(months);
+ const labels=Object.keys(months).sort();
 
- const investments=labels.map(m=>months[m].investment);
- const salesArr=labels.map(m=>months[m].sales);
- const profits=labels.map(m=>months[m].profit);
+ const inv=labels.map(m=>months[m].investment);
+ const sal=labels.map(m=>months[m].sales);
 
- /* ===== TABLE ===== */
-
- monthTable.innerHTML = labels.map(m=>{
-
-  const roi =
-   months[m].investment
-   ? (months[m].sales/months[m].investment).toFixed(2)
-   : 0;
-
-  return `
-  <tr>
-   <td>${m}</td>
-   <td>${months[m].investment.toFixed(2)}</td>
-   <td>${months[m].sales.toFixed(2)}</td>
-   <td>${months[m].profit.toFixed(2)}</td>
-   <td>${roi}</td>
-  </tr>`;
- }).join("");
-
- /* ===== BAR CHART ===== */
+ monthTable.innerHTML=labels.map(m=>`
+ <tr>
+ <td>${m}</td>
+ <td>${months[m].investment.toFixed(2)}</td>
+ <td>${months[m].sales.toFixed(2)}</td>
+ <td>${months[m].profit.toFixed(2)}</td>
+ <td>${months[m].investment? (months[m].sales/months[m].investment).toFixed(2):0}</td>
+ </tr>`).join("");
 
  if(salesChart) salesChart.destroy();
 
- salesChart = new Chart(
- document.getElementById("salesChartCanvas"),
- {
+ salesChart=new Chart(salesChartCanvas,{
   type:"bar",
-  data:{
-   labels:labels,
-   datasets:[
-    {label:"Investment",data:investments},
-    {label:"Sales",data:salesArr}
-   ]
-  }
+  data:{labels,datasets:[
+   {label:"Investment",data:inv},
+   {label:"Sales",data:sal}
+  ]}
  });
 
- /* ===== BREAK EVEN CURVE ===== */
-
- let cumInv=[], cumSales=[];
  let a=0,b=0;
+ const cumInv=[], cumSal=[];
 
  labels.forEach((m,i)=>{
-  a+=investments[i];
-  b+=salesArr[i];
-  cumInv.push(a);
-  cumSales.push(b);
+  a+=inv[i]; b+=sal[i];
+  cumInv.push(a); cumSal.push(b);
  });
 
  if(breakChart) breakChart.destroy();
 
- breakChart = new Chart(
- document.getElementById("breakChartCanvas"),
- {
+ breakChart=new Chart(breakChartCanvas,{
   type:"line",
-  data:{
-   labels:labels,
-   datasets:[
-    {label:"Cumulative Investment",data:cumInv},
-    {label:"Cumulative Sales",data:cumSales}
-   ]
-  }
+  data:{labels,datasets:[
+   {label:"Cumulative Investment",data:cumInv},
+   {label:"Cumulative Sales",data:cumSal}
+  ]}
  });
 }
 
+/* ================= INIT ================= */
+
+loadDropdowns();
 loadAll();
 
 </script>
