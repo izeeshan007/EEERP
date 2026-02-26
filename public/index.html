@@ -127,7 +127,6 @@
                         </thead>
                         <tbody id="stockTable" class="divide-y"></tbody>
                     </table>
-                    
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
                     <span class="text-slate-500 font-medium">Total Inventory Value:</span>
@@ -176,8 +175,8 @@
                     </div>
 
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost</label>
-                        <input id="mfg" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none" readonly value="0.00">
+                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost (Editable)</label>
+                        <input id="mfg" type="number" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none" value="0.00">
                     </div>
 
                     <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹">
@@ -314,6 +313,9 @@
         const c=category.value;
         let html=`<input id="name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" oninput="autoFillStock()">`;
 
+        // Filter datalist for names based on category selected
+        updateNameList(c);
+
         if(c==="Attar Oil"){
             html+=`
             <input id="designerName" list="designerList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Designer Name">
@@ -334,9 +336,10 @@
             </select>`;
         }
 
+        // standard quantity and cost fields for all including Raw Perfume and Chemicals
         html+=`
         <div class="grid grid-cols-2 gap-2">
-            <input id="units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Units">
+            <input id="units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity/Units">
             <input id="cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost">
         </div>
         <div class="space-y-1">
@@ -345,36 +348,56 @@
         </div>`;
         
         dynamicFields.innerHTML=html;
-
-        // Set default date for stock entry whenever fields are re-generated
         document.getElementById('stockPurchaseDate').value = new Date().toISOString().split("T")[0];
     }
-    changeFields();
+
+    function updateNameList(selectedCategory) {
+        // Only show names matching the selected category and remove duplicates
+        const filteredNames = [...new Set(stockCache
+            .filter(s => s.category === selectedCategory)
+            .map(s => s.name))]
+            .filter(Boolean);
+        nameList.innerHTML = filteredNames.map(v => `<option value="${v}">`).join("");
+    }
 
     async function loadDropdowns(){
         try {
             const stock=await (await fetch("/api/stock")).json();
             stockCache=stock;
-            nameList.innerHTML=[...new Set(stock.map(s=>s.name))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
+            
+            // Deduplicate lists
             designerList.innerHTML=[...new Set(stock.map(s=>s.designerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
             supplierList.innerHTML=[...new Set(stock.map(s=>s.supplier))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
-            oilList.innerHTML=stock.filter(s=>s.category==="Attar Oil").map(o=>`<option value="${o.name}">`).join("");
+            
+            // Sales dropdown: ONLY Attar Oils, deduplicated
+            oilList.innerHTML=[...new Set(stock.filter(s=>s.category==="Attar Oil").map(o=>o.name))].map(v=>`<option value="${v}">`).join("");
+            
+            // Refresh current stock entry list
+            updateNameList(category.value);
         } catch(e) { console.error("Dropdown load failed", e); }
     }
 
     function autoFillStock(){
-        const f=stockCache.find(s=>s.name===document.getElementById('name').value);
+        const currentCat = category.value;
+        const itemName = document.getElementById('name').value;
+        const f=stockCache.find(s=>s.name===itemName && s.category === currentCat);
         if(!f) return;
+        
         const dn = document.getElementById('designerName');
         const sp = document.getElementById('supplier');
         const sz = document.getElementById('size');
+        const sub = document.getElementById('subCategory');
+        const typ = document.getElementById('type');
+
         if(dn) dn.value = f.designerName || "";
         if(sp) sp.value = f.supplier || "";
         if(sz) sz.value = f.size_ml || "";
+        if(sub) sub.value = f.subCategory || "";
+        if(typ) typ.value = f.type || "";
     }
 
     function calculateMfgCost(){
-        const oil = stockCache.find(s => s.name === productName.value);
+        const oil = stockCache.find(s => s.name === productName.value && s.category === "Attar Oil");
         if(!oil) return;
         const qty = Number(saleSize.value || 0);
         const oilPercentVal = Number(oilPercent.value || 0);
@@ -604,6 +627,8 @@
 
         const years = [...new Set(salesData.map(s=>new Date(s.saleDate).getFullYear()))];
         yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join("");
+        
+        stockCache = stock; // update local cache
         buildAnalytics(stock,salesData);
     }
 
