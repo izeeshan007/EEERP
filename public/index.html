@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Perfume ERP PRO | Management</title>
+    <title>Perfume ERP | Management</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -15,9 +15,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
         }
-        .input-focus {
-            transition: all 0.2s;
-        }
+        .input-focus { transition: all 0.2s; }
         .input-focus:focus {
             border-color: #4f46e5;
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
@@ -35,6 +33,16 @@
             color: #4f46e5;
             font-weight: 600;
         }
+        .sort-header { cursor: pointer; user-select: none; }
+        .sort-header:hover { color: #4f46e5; }
+        .filter-input {
+            width: 100%;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background: #fff;
+        }
     </style>
 </head>
 
@@ -46,34 +54,39 @@
             <div class="bg-indigo-600 p-1.5 rounded-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             </div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">PRO</span></h1>
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.0</span></h1>
         </div>
-        <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition">
-            Logout
-        </button>
+        <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition">Logout</button>
     </div>
 </nav>
 
 <main class="max-w-7xl mx-auto px-4">
-    
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div class="glass-card p-5 rounded-2xl border-l-4 border-blue-500">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Investment</p>
-            <p id="investment" class="text-2xl font-bold text-slate-800 mt-1">₹0</p>
-        </div>
-        <div class="glass-card p-5 rounded-2xl border-l-4 border-emerald-500">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sales</p>
-            <p id="sales" class="text-2xl font-bold text-slate-800 mt-1">₹0</p>
-        </div>
-        <div class="glass-card p-5 rounded-2xl border-l-4 border-indigo-500">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Profit</p>
-            <p id="profit" class="text-2xl font-bold text-emerald-600 mt-1">₹0</p>
-        </div>
-        <div class="glass-card p-5 rounded-2xl border-l-4 border-amber-500">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">ROI</p>
-            <p id="roi" class="text-2xl font-bold text-slate-800 mt-1">0</p>
-        </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-blue-500">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Investment</p>
+        <p id="investment" class="text-xl font-bold text-slate-800 mt-1">₹0</p>
     </div>
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-emerald-500">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Sales</p>
+        <p id="sales" class="text-xl font-bold text-slate-800 mt-1">₹0</p>
+    </div>
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-indigo-500">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Gross Profit</p>
+        <p id="profit" class="text-xl font-bold text-emerald-600 mt-1">₹0</p>
+    </div>
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-rose-500" id="net-pl-card">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net P/L (Cashflow)</p>
+        <p id="net-pl" class="text-xl font-bold mt-1">₹0</p>
+    </div>
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-cyan-500">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Breakeven %</p>
+        <p id="breakeven" class="text-xl font-bold text-slate-800 mt-1">0%</p>
+    </div>
+    <div class="glass-card p-4 rounded-2xl border-l-4 border-amber-500">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">ROI</p>
+        <p id="roi" class="text-xl font-bold text-slate-800 mt-1">0</p>
+    </div>
+</div>
 
     <div class="flex gap-6 border-b mb-6 overflow-x-auto">
         <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Inventory Stock</button>
@@ -101,35 +114,44 @@
                         <option>Misc</option>
                     </select>
                     <div id="dynamicFields" class="space-y-3 mt-4"></div>
-                    
-                    <button onclick="addStock()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-200 mt-4">
-                        Add to Inventory
-                    </button>
+                    <button onclick="addStock()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-200 mt-4">Add to Inventory</button>
                     <p id="stockMsg" class="text-center text-sm font-medium text-emerald-600"></p>
                 </div>
             </div>
 
             <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-slate-800">Stock Records</h2>
-                    <input id="stockFilter" class="p-2 border rounded-lg text-sm w-full sm:w-64 bg-slate-50" placeholder="🔍 Search stock..." oninput="loadAll()">
+                    <button onclick="clearFilters('stock')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full text-left text-sm" id="stockRecordsTable">
                         <thead>
                             <tr class="text-slate-500 border-b">
-                                <th class="pb-3 font-semibold">Product Name</th>
-                                <th class="pb-3 font-semibold">Category</th>
-                                <th class="pb-3 font-semibold text-right">Units</th>
-                                <th class="pb-3 font-semibold text-right">Cost</th>
-                                
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'name')">Name ↕</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'category')">Category ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'units')">Qty/Size ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'cost')">Cost ↕</th>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <th class="py-2 pr-2"><input type="text" id="filter-stock-name" class="filter-input" placeholder="Filter name..." oninput="renderStockTable()"></th>
+                                <th class="py-2 pr-2">
+                                    <select id="filter-stock-category" class="filter-input" onchange="renderStockTable()">
+                                        <option value="">All Categories</option>
+                                        <option>Attar Oil</option><option>Raw Perfume</option><option>Bottle</option>
+                                        <option>Pouch</option><option>Box</option><option>Aroma Chemical</option>
+                                        <option>Equipment</option><option>Misc</option>
+                                    </select>
+                                </th>
+                                <th class="py-2"></th>
+                                <th class="py-2"></th>
                             </tr>
                         </thead>
                         <tbody id="stockTable" class="divide-y"></tbody>
                     </table>
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">Total Inventory Value:</span>
+                    <span class="text-slate-500 font-medium">Filtered Value:</span>
                     <span class="text-lg font-bold text-indigo-600">₹ <span id="stockTotal">0</span></span>
                 </div>
             </div>
@@ -151,67 +173,63 @@
                         </select>
                         <select id="saleSize" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calculateMfgCost()"></select>
                     </div>
-                    
                     <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar Oil Name" oninput="calculateMfgCost()">
-                    
                     <div class="grid grid-cols-2 gap-2">
                         <input id="oilPercent" class="p-2.5 border rounded-xl bg-slate-50 input-focus" type="number" value="45" placeholder="Oil %" oninput="calculateMfgCost()">
                         <input id="otherCost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Misc Cost" oninput="calculateMfgCost()">
                     </div>
-
                     <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-slate-400">Packaging (Bottle / Box / Pouch)</label>
-                        <div class="grid grid-cols-3 gap-1">
+                        <label class="text-[10px] uppercase font-bold text-slate-400">Packaging</label>
+                        <div class="grid grid-cols-1 gap-2">
                             <select id="bottleCat" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
-                                <option value="NA">Bottle (NA)</option><option>ECO</option><option>Moderate</option><option>Premium</option>
+                                <option value="NA">Bottle Quality (NA)</option><option>ECO</option><option>Moderate</option><option>Premium</option>
                             </select>
-                            <select id="boxCat" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
-                                <option value="NA">Box (NA)</option><option>ECO</option><option>Moderate</option><option>Premium</option>
+                            <select id="boxNameSelect" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
+                                <option value="NA">Select Box (NA)</option>
                             </select>
-                            <select id="pouchCat" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
-                                <option value="NA">Pouch (NA)</option><option>ECO</option><option>Moderate</option><option>Premium</option>
+                            <select id="pouchNameSelect" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
+                                <option value="NA">Select Pouch (NA)</option>
                             </select>
                         </div>
                     </div>
-
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost (Editable)</label>
+                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost</label>
                         <input id="mfg" type="number" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none" value="0.00">
                     </div>
-
                     <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹">
-                    
                     <div class="grid grid-cols-2 gap-2">
                         <input id="customer" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Customer">
                         <input id="reference" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Reference">
                     </div>
                     <input id="date" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
-
-                    <button onclick="addSale()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-200 mt-2">
-                        Complete Sale
-                    </button>
+                    <button onclick="addSale()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-200 mt-2">Complete Sale</button>
                 </div>
             </div>
 
             <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-slate-800">Sales History</h2>
-                    <input id="salesFilter" class="p-2 border rounded-lg text-sm w-full sm:w-64 bg-slate-50" placeholder="🔍 Search sales..." oninput="loadAll()">
+                    <button onclick="clearFilters('sales')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full text-left text-sm" id="salesRecordsTable">
                         <thead>
                             <tr class="text-slate-500 border-b">
-                                <th class="pb-3 font-semibold">Product</th>
-                                <th class="pb-3 font-semibold">Customer</th>
-                                <th class="pb-3 font-semibold text-right">Profit</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'productName')">Product ↕</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'customerName')">Customer ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'profit')">Profit ↕</th>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <th class="py-2 pr-2"><input type="text" id="filter-sales-product" class="filter-input" placeholder="Filter product..." oninput="renderSalesTable()"></th>
+                                <th class="py-2 pr-2"><input type="text" id="filter-sales-customer" class="filter-input" placeholder="Filter customer..." oninput="renderSalesTable()"></th>
+                                <th class="py-2"></th>
                             </tr>
                         </thead>
                         <tbody id="salesTable" class="divide-y"></tbody>
                     </table>
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">Total Sales Revenue:</span>
+                    <span class="text-slate-500 font-medium">Filtered Sales:</span>
                     <span class="text-lg font-bold text-emerald-600">₹ <span id="salesTotal">0</span></span>
                 </div>
             </div>
@@ -234,7 +252,6 @@
                     <option value="7D">7 Days</option>
                 </select>
             </div>
-
             <div class="overflow-x-auto rounded-xl border mb-8">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-slate-50 text-slate-600 border-b">
@@ -249,7 +266,6 @@
                     <tbody id="monthTable" class="divide-y"></tbody>
                 </table>
             </div>
-
             <div class="grid lg:grid-cols-2 gap-8">
                 <div class="p-4 bg-white border rounded-2xl shadow-sm">
                     <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales vs Investment</h3>
@@ -262,13 +278,13 @@
             </div>
         </div>
     </div>
-
 </main>
 
 <div id="modal" class="modal">
-    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div class="p-6 border-b">
+    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b flex justify-between items-center">
             <h2 id="modalTitle" class="text-xl font-bold text-slate-800">Edit Entry</h2>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
         <div id="modalBody" class="p-6 grid gap-4"></div>
         <div class="p-6 bg-slate-50 flex gap-3">
@@ -287,7 +303,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // TAB FLOW LOGIC
+    // --- Global State ---
+    let stockCache = [];
+    let salesCache = [];
+    let editType = "", editId = "";
+    let salesChart = null, breakChart = null;
+
+    let stockSort = { key: 'id', dir: -1 };
+    let salesSort = { key: 'id', dir: -1 };
+
+    // --- Tab Logic ---
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -304,96 +329,219 @@
 
     document.getElementById('date').value = new Date().toISOString().split("T")[0];
 
-    let stockCache=[];
-    let editType="",editId="";
-    let salesChart=null;
-    let breakChart=null;
-
+    // --- Dynamic Entry Logic ---
     function changeFields(){
-        const c=category.value;
-        let html=`<input id="name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" oninput="autoFillStock()">`;
-
-        // Filter datalist for names based on category selected
+        const c = category.value;
+        dynamicFields.innerHTML = getFieldsHTML(c);
+        if(document.getElementById('stockPurchaseDate')) {
+            document.getElementById('stockPurchaseDate').value = new Date().toISOString().split("T")[0];
+        }
         updateNameList(c);
+    }
 
-        if(c==="Attar Oil"){
-            html+=`
-            <input id="designerName" list="designerList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Designer Name">
-            <input id="supplier" list="supplierList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Supplier">
-            <select id="size" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
-                <option value="25">25 ml</option><option value="50">50 ml</option><option value="100">100 ml</option>
-                <option value="250">250 ml</option><option value="500">500 ml</option><option value="1000">1000 ml</option>
+    function getFieldsHTML(c, data = {}) {
+        let html = "";
+        if (c !== "Bottle") {
+            html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" value="${data.name || ''}" oninput="autoFillStock()">`;
+        }
+        if(c === "Attar Oil"){
+            html += `
+            <input id="${data._id ? 'e_' : ''}designerName" list="designerList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Designer Name" value="${data.designerName || ''}">
+            <input id="${data._id ? 'e_' : ''}supplier" list="supplierList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Supplier" value="${data.supplier || ''}">
+            <select id="${data._id ? 'e_' : ''}size" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+                <option value="25" ${data.size_ml==25?'selected':''}>25 ml</option><option value="50" ${data.size_ml==50?'selected':''}>50 ml</option>
+                <option value="100" ${data.size_ml==100?'selected':''}>100 ml</option><option value="250" ${data.size_ml==250?'selected':''}>250 ml</option>
+                <option value="500" ${data.size_ml==500?'selected':''}>500 ml</option><option value="1000" ${data.size_ml==1000?'selected':''}>1000 ml</option>
             </select>`;
         }
-
-        if(["Bottle","Pouch","Box"].includes(c)){
-            html+=`
-            <select id="subCategory" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
-                <option value="">Quality: NA</option><option>ECO</option><option>Moderate</option><option>Premium</option>
+        if(c === "Raw Perfume" || c === "Aroma Chemical"){
+            html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in ml" value="${data.size_ml || ''}">`;
+        }
+        if(c === "Bottle"){
+            html += `
+            <select id="${data._id ? 'e_' : ''}size" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+                <option value="8" ${data.size_ml==8?'selected':''}>8 ml Bottle</option>
+                <option value="20" ${data.size_ml==20?'selected':''}>20 ml Bottle</option>
+                <option value="30" ${data.size_ml==30?'selected':''}>30 ml Bottle</option>
+                <option value="50" ${data.size_ml==50?'selected':''}>50 ml Bottle</option>
+                <option value="100" ${data.size_ml==100?'selected':''}>100 ml Bottle</option>
             </select>
-            <select id="type" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
-                <option>Perfume</option><option>Attar</option>
+            <select id="${data._id ? 'e_' : ''}subCategory" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+                <option value="" ${!data.subCategory?'selected':''}>Quality: NA</option>
+                <option ${data.subCategory=='ECO'?'selected':''}>ECO</option>
+                <option ${data.subCategory=='Moderate'?'selected':''}>Moderate</option>
+                <option ${data.subCategory=='Premium'?'selected':''}>Premium</option>
+            </select>
+            <select id="${data._id ? 'e_' : ''}type" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+                <option ${data.type=='Perfume'?'selected':''}>Perfume</option>
+                <option ${data.type=='Attar'?'selected':''}>Attar</option>
             </select>`;
         }
-
-        // standard quantity and cost fields for all including Raw Perfume and Chemicals
-        html+=`
+        html += `
         <div class="grid grid-cols-2 gap-2">
-            <input id="units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity/Units">
-            <input id="cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost">
+            <input id="${data._id ? 'e_' : ''}units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Units" value="${data.units || ''}">
+            <input id="${data._id ? 'e_' : ''}cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost" value="${data.cost || ''}">
         </div>
         <div class="space-y-1">
             <label class="text-[10px] uppercase font-bold text-slate-400">Purchase Date</label>
-            <input id="stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+            <input id="${data._id ? 'e_' : ''}stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" value="${data.purchaseDate ? data.purchaseDate.split('T')[0] : ''}">
         </div>`;
-        
-        dynamicFields.innerHTML=html;
-        document.getElementById('stockPurchaseDate').value = new Date().toISOString().split("T")[0];
+        return html;
+    }
+
+    // --- Filter & Sort Logic ---
+    function setSort(table, key) {
+        if(table === 'stock') {
+            stockSort.dir = (stockSort.key === key) ? stockSort.dir * -1 : 1;
+            stockSort.key = key;
+            renderStockTable();
+        } else {
+            salesSort.dir = (salesSort.key === key) ? salesSort.dir * -1 : 1;
+            salesSort.key = key;
+            renderSalesTable();
+        }
+    }
+
+    function clearFilters(table) {
+        if(table === 'stock') {
+            document.getElementById('filter-stock-name').value = '';
+            document.getElementById('filter-stock-category').value = '';
+            renderStockTable();
+        } else {
+            document.getElementById('filter-sales-product').value = '';
+            document.getElementById('filter-sales-customer').value = '';
+            renderSalesTable();
+        }
+    }
+
+    function renderStockTable() {
+        const nameFilter = document.getElementById('filter-stock-name').value.toLowerCase();
+        const catFilter = document.getElementById('filter-stock-category').value;
+
+        let filtered = stockCache.filter(s => 
+            (s.name || "").toLowerCase().includes(nameFilter) &&
+            (catFilter === "" || s.category === catFilter)
+        );
+
+        filtered.sort((a,b) => {
+            let valA = a[stockSort.key], valB = b[stockSort.key];
+            if(typeof valA === 'string') return valA.localeCompare(valB) * stockSort.dir;
+            return (valA - valB) * stockSort.dir;
+        });
+
+        stockTable.innerHTML = filtered.map(s => `
+            <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+                <td class="py-3 font-medium">${s.name||""}</td>
+                <td class="py-3 text-slate-500">${s.category||""}</td>
+                <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + 'ml' : s.units + ' U'}</td>
+                <td class="py-3 text-right font-bold">₹${s.cost||0}</td>
+            </tr>`).join("");
+        stockTotal.innerText = filtered.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
+    }
+
+    function renderSalesTable() {
+        const prodFilter = document.getElementById('filter-sales-product').value.toLowerCase();
+        const custFilter = document.getElementById('filter-sales-customer').value.toLowerCase();
+
+        let filtered = salesCache.filter(s => 
+            (s.productName || "").toLowerCase().includes(prodFilter) &&
+            (s.customerName || "").toLowerCase().includes(custFilter)
+        );
+
+        filtered.sort((a,b) => {
+            let valA = a[salesSort.key], valB = b[salesSort.key];
+            if(typeof valA === 'string') return valA.localeCompare(valB) * salesSort.dir;
+            return (valA - valB) * salesSort.dir;
+        });
+
+        salesTable.innerHTML = filtered.map(s => `
+            <tr onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+                <td class="py-3 font-medium">${s.productName||""}</td>
+                <td class="py-3 text-slate-500">${s.customerName||""}</td>
+                <td class="py-3 text-right font-bold text-emerald-600">₹${s.profit?.toFixed(2)||0}</td>
+            </tr>`).join("");
+        salesTotal.innerText = filtered.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
+    }
+
+    // --- Modal Control ---
+    function openModal(type, data){
+        editType = type; editId = data._id;
+        modal.style.display = "flex";
+        modalTitle.innerText = type === "stock" ? `Edit Stock: ${data.category}` : "Edit Sale Record";
+
+        if(type === "stock") {
+            modalBody.innerHTML = getFieldsHTML(data.category, data);
+        } else {
+            modalBody.innerHTML = `
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="e_mfg" placeholder="Mfg Cost" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
+                    <input id="e_sold" placeholder="Sold Price" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
+                </div>
+                <input id="e_productName" placeholder="Product" class="p-2.5 border rounded-xl bg-slate-50" value="${data.productName||""}">
+                <input id="e_customerName" placeholder="Customer" class="p-2.5 border rounded-xl bg-slate-50" value="${data.customerName||""}">
+                <input id="e_referenceSource" placeholder="Reference" class="p-2.5 border rounded-xl bg-slate-50" value="${data.referenceSource||""}">
+                <input id="e_saleDate" type="date" class="p-2.5 border rounded-xl bg-slate-50" value="${data.saleDate ? data.saleDate.split('T')[0] : ''}">
+            `;
+        }
+    }
+
+    async function saveModal(){
+        let body = {};
+        if(editType === "stock") {
+            const cat = stockCache.find(x => x._id === editId).category;
+            body = {
+                name: (cat === "Bottle") ? `${document.getElementById("e_size").value}ml Bottle` : (document.getElementById("e_name")?.value || ""),
+                designerName: document.getElementById("e_designerName")?.value || "",
+                supplier: document.getElementById("e_supplier")?.value || "",
+                subCategory: document.getElementById("e_subCategory")?.value || "",
+                type: document.getElementById("e_type")?.value || "",
+                size_ml: Number(document.getElementById("e_size")?.value || 0),
+                units: Number(document.getElementById("e_units")?.value || 0),
+                cost: Number(document.getElementById("e_cost")?.value || 0),
+                purchaseDate: document.getElementById("e_stockPurchaseDate")?.value
+            };
+        } else {
+            body = {
+                productName: e_productName.value,
+                customerName: e_customerName.value,
+                referenceSource: e_referenceSource.value,
+                manufacturingCost: Number(e_mfg.value),
+                soldPrice: Number(e_sold.value),
+                saleDate: e_saleDate.value
+            };
+        }
+        await fetch(`/api/${editType}/${editId}`, {
+            method: "PUT", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        });
+        closeModal(); loadAll();
+    }
+
+    // --- Existing Core Logic (Preserved) ---
+    function closeModal(){ modal.style.display="none"; }
+    
+    async function deleteModal(){
+        if(confirm("Are you sure?")) {
+            await fetch(`/api/${editType}/${editId}`, {method: "DELETE"});
+            closeModal(); loadAll();
+        }
     }
 
     function updateNameList(selectedCategory) {
-        // Only show names matching the selected category and remove duplicates
-        const filteredNames = [...new Set(stockCache
-            .filter(s => s.category === selectedCategory)
-            .map(s => s.name))]
-            .filter(Boolean);
+        const filteredNames = [...new Set(stockCache.filter(s => s.category === selectedCategory).map(s => s.name))].filter(Boolean);
         nameList.innerHTML = filteredNames.map(v => `<option value="${v}">`).join("");
     }
 
     async function loadDropdowns(){
         try {
-            const stock=await (await fetch("/api/stock")).json();
-            stockCache=stock;
-            
-            // Deduplicate lists
-            designerList.innerHTML=[...new Set(stock.map(s=>s.designerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
-            supplierList.innerHTML=[...new Set(stock.map(s=>s.supplier))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
-            
-            // Sales dropdown: ONLY Attar Oils, deduplicated
-            oilList.innerHTML=[...new Set(stock.filter(s=>s.category==="Attar Oil").map(o=>o.name))].map(v=>`<option value="${v}">`).join("");
-            
-            // Refresh current stock entry list
-            updateNameList(category.value);
-        } catch(e) { console.error("Dropdown load failed", e); }
-    }
-
-    function autoFillStock(){
-        const currentCat = category.value;
-        const itemName = document.getElementById('name').value;
-        const f=stockCache.find(s=>s.name===itemName && s.category === currentCat);
-        if(!f) return;
-        
-        const dn = document.getElementById('designerName');
-        const sp = document.getElementById('supplier');
-        const sz = document.getElementById('size');
-        const sub = document.getElementById('subCategory');
-        const typ = document.getElementById('type');
-
-        if(dn) dn.value = f.designerName || "";
-        if(sp) sp.value = f.supplier || "";
-        if(sz) sz.value = f.size_ml || "";
-        if(sub) sub.value = f.subCategory || "";
-        if(typ) typ.value = f.type || "";
+            const stock = await (await fetch("/api/stock")).json();
+            stockCache = stock;
+            designerList.innerHTML = [...new Set(stock.map(s=>s.designerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
+            supplierList.innerHTML = [...new Set(stock.map(s=>s.supplier))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
+            oilList.innerHTML = [...new Set(stock.filter(s=>s.category==="Attar Oil").map(o=>o.name))].map(v=>`<option value="${v}">`).join("");
+            boxNameSelect.innerHTML = `<option value="NA">Select Box (NA)</option>` + [...new Set(stock.filter(s=>s.category==="Box").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
+            pouchNameSelect.innerHTML = `<option value="NA">Select Pouch (NA)</option>` + [...new Set(stock.filter(s=>s.category==="Pouch").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
+            changeFields();
+        } catch(e) { console.error(e); }
     }
 
     function calculateMfgCost(){
@@ -401,40 +549,31 @@
         if(!oil) return;
         const qty = Number(saleSize.value || 0);
         const oilPercentVal = Number(oilPercent.value || 0);
-        const bottleCategory = bottleCat.value;
-        const boxCategory = boxCat.value;
-        const pouchCategory = pouchCat.value;
+        const bottleQuality = bottleCat.value;
+        const selectedBox = boxNameSelect.value;
+        const selectedPouch = pouchNameSelect.value;
         const extraCost = Number(otherCost.value || 0);
-
         let totalCost = 0;
-
         if(saleCat.value === "Attar"){
-            const oilCost = oil.pricePerUnit || 0;
-            totalCost += oilCost * qty;
-        }
-
-        if(saleCat.value === "Perfume"){
-            const oilCostPerMl = oil.pricePerUnit || 0;
+            totalCost += (oil.pricePerUnit || 0) * qty;
+        } else {
             const oilQty = qty * (oilPercentVal / 100);
             const ethanolQty = qty - oilQty;
-            const ethanolStock = stockCache.find(s => s.name?.toLowerCase().includes("ethanol"));
-            const ethanolCostPerMl = ethanolStock ? ethanolStock.pricePerUnit : 0;
-            totalCost += (oilQty * oilCostPerMl) + (ethanolQty * ethanolCostPerMl);
+            const ethStock = stockCache.find(s => s.name?.toLowerCase().includes("ethanol"));
+            totalCost += (oilQty * (oil.pricePerUnit || 0)) + (ethanolQty * (ethStock ? ethStock.pricePerUnit : 0));
         }
-
-        if(bottleCategory !== "NA"){
-            const b = stockCache.find(s => s.category === "Bottle" && s.subCategory === bottleCategory && s.type === saleCat.value);
+        if(bottleQuality !== "NA"){
+            const b = stockCache.find(s => s.category === "Bottle" && s.subCategory === bottleQuality && s.size_ml === qty);
             if(b) totalCost += b.pricePerUnit || 0;
         }
-        if(boxCategory !== "NA"){
-            const b = stockCache.find(s => s.category === "Box" && s.subCategory === boxCategory);
-            if(b) totalCost += b.pricePerUnit || 0;
+        if(selectedBox !== "NA"){
+            const box = stockCache.find(s => s.category === "Box" && s.name === selectedBox);
+            if(box) totalCost += box.pricePerUnit || 0;
         }
-        if(pouchCategory !== "NA"){
-            const p = stockCache.find(s => s.category === "Pouch" && s.subCategory === pouchCategory);
-            if(p) totalCost += p.pricePerUnit || 0;
+        if(selectedPouch !== "NA"){
+            const pouch = stockCache.find(s => s.category === "Pouch" && s.name === selectedPouch);
+            if(pouch) totalCost += pouch.pricePerUnit || 0;
         }
-
         totalCost += extraCost;
         mfg.value = totalCost.toFixed(2);
     }
@@ -444,105 +583,90 @@
         saleSize.innerHTML = "";
         if(type === "Attar"){
             [3,6,8,12,15].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
-            oilPercent.style.display = "none";
+            oilPercent.parentElement.style.display = "none";
         } else {
             [8,20,30,50,100].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
-            oilPercent.style.display = "block";
+            oilPercent.parentElement.style.display = "grid";
         }
         calculateMfgCost();
     }
 
     async function addStock(){
-        const body={
-            category:category.value,
-            name:document.getElementById("name")?.value||"",
-            designerName:document.getElementById("designerName")?.value||"",
-            supplier:document.getElementById("supplier")?.value||"",
-            subCategory:document.getElementById("subCategory")?.value||"",
-            type:document.getElementById("type")?.value||"",
-            size_ml:Number(document.getElementById("size")?.value||0),
-            units:Number(document.getElementById("units")?.value||0),
-            cost:Number(document.getElementById("cost")?.value||0),
-            purchaseDate: document.getElementById("stockPurchaseDate")?.value || new Date().toISOString().split("T")[0]
+        const cat = category.value;
+        const body = {
+            category: cat,
+            name: (cat === "Bottle") ? `${document.getElementById("size").value}ml Bottle` : (document.getElementById("name")?.value || ""),
+            designerName: document.getElementById("designerName")?.value || "",
+            supplier: document.getElementById("supplier")?.value || "",
+            subCategory: document.getElementById("subCategory")?.value || "",
+            type: document.getElementById("type")?.value || "",
+            size_ml: Number(document.getElementById("size")?.value || 0),
+            units: Number(document.getElementById("units")?.value || 0),
+            cost: Number(document.getElementById("cost")?.value || 0),
+            purchaseDate: document.getElementById("stockPurchaseDate")?.value
         };
-        await fetch("/api/stock",{
-            method:"POST",
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify(body)
-        });
-        stockMsg.innerText = "Stock added successfully!";
-        setTimeout(()=>stockMsg.innerText="", 2000);
+        await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
         loadAll(); loadDropdowns();
     }
 
     async function addSale(){
-        await fetch("/api/sales",{
-            method:"POST",
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                productName:productName.value,
-                customerName:customer.value,
-                referenceSource:reference.value,
-                manufacturingCost:Number(mfg.value||0),
-                soldPrice:Number(sold.value||0),
-                saleDate:date.value
-            })
-        });
+        await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+            productName:productName.value, customerName:customer.value, referenceSource:reference.value,
+            manufacturingCost:Number(mfg.value), soldPrice:Number(sold.value), saleDate:date.value, size_ml:Number(saleSize.value)
+        })});
         loadAll();
     }
 
-    function openModal(type,data){
-        editType=type; editId=data._id;
-        modal.style.display="flex";
-        modalTitle.innerText=type==="stock"?"Edit Stock Item":"Edit Sale Record";
+    async function loadAll(){
+    const stock = await (await fetch("/api/stock")).json();
+    const salesData = await (await fetch("/api/sales")).json();
+    const dash = await (await fetch("/api/dashboard")).json();
 
-        if(type==="stock"){
-            modalBody.innerHTML=`
-                <input id="m_name" placeholder="Name" class="p-2 border rounded-xl bg-slate-50" value="${data.name||""}">
-                <input id="m_designer" placeholder="Designer" class="p-2 border rounded-xl bg-slate-50" value="${data.designerName||""}">
-                <input id="m_supplier" placeholder="Supplier" class="p-2 border rounded-xl bg-slate-50" value="${data.supplier||""}">
-                <div class="grid grid-cols-2 gap-2">
-                    <input id="m_units" placeholder="Units" class="p-2 border rounded-xl bg-slate-50" type="number" value="${data.units||0}">
-                    <input id="m_cost" placeholder="Cost" class="p-2 border rounded-xl bg-slate-50" type="number" value="${data.cost||0}">
-                </div>`;
-        } else {
-            modalBody.innerHTML=`
-                <input id="m_name" placeholder="Product" class="p-2 border rounded-xl bg-slate-50" value="${data.productName||""}">
-                <input id="m_customer" placeholder="Customer" class="p-2 border rounded-xl bg-slate-50" value="${data.customerName||""}">
-                <div class="grid grid-cols-2 gap-2">
-                    <input id="m_mfg" placeholder="Mfg Cost" class="p-2 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
-                    <input id="m_sold" placeholder="Sold Price" class="p-2 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
-                </div>`;
-        }
+    // 1. Basic Metrics
+    investment.innerText = "₹" + dash.totalInvestment.toLocaleString();
+    document.getElementById("sales").innerText = "₹" + dash.totalSales.toLocaleString();
+    profit.innerText = "₹" + dash.totalProfit.toLocaleString();
+    roi.innerText = dash.roi.toFixed(2);
+
+    // 2. NEW: Net P/L Calculation (Cash In vs Cash Out)
+    const netPLValue = dash.totalSales - dash.totalInvestment;
+    const netPLElem = document.getElementById("net-pl");
+    const netPLCard = document.getElementById("net-pl-card");
+    
+    netPLElem.innerText = (netPLValue >= 0 ? "+ ₹" : "- ₹") + Math.abs(netPLValue).toLocaleString();
+    
+    // Logic: Change color to green if profitable, red if still in recovery
+    if (netPLValue >= 0) {
+        netPLElem.className = "text-xl font-bold text-emerald-600 mt-1";
+        netPLCard.style.borderColor = "#10b981"; // emerald-500
+    } else {
+        netPLElem.className = "text-xl font-bold text-rose-600 mt-1";
+        netPLCard.style.borderColor = "#f43f5e"; // rose-500
     }
 
-    function closeModal(){ modal.style.display="none"; }
+    // 3. NEW: Breakeven Progress (Anything else added)
+    // Shows how much of the investment has been recovered.
+    const breakevenPercent = dash.totalInvestment > 0 
+        ? (dash.totalSales / dash.totalInvestment * 100).toFixed(1) 
+        : 0;
+    document.getElementById("breakeven").innerText = breakevenPercent + "%";
 
-    async function saveModal(){
-        let body={};
-        if(editType==="stock"){
-            body={ name:m_name.value, designerName:m_designer.value, supplier:m_supplier.value, units:Number(m_units.value), cost:Number(m_cost.value) };
-        } else {
-            body={ productName:m_name.value, customerName:m_customer.value, manufacturingCost:Number(m_mfg.value), soldPrice:Number(m_sold.value) };
-        }
-        await fetch(`/api/${editType}/${editId}`,{
-            method:"PUT", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
-        });
-        closeModal(); loadAll();
-    }
+    // Update Tables & Charts
+    stockCache = stock;
+    salesCache = salesData;
+    renderStockTable();
+    renderSalesTable();
+    buildAnalytics(stock, salesData);
 
-    async function deleteModal(){
-        if(confirm("Are you sure you want to delete this?")){
-            await fetch(`/api/${editType}/${editId}`,{method:"DELETE"});
-            closeModal(); loadAll();
-        }
-    }
-
+    // Update Year Filter
+    const years = [...new Set(salesData.map(s => new Date(s.saleDate).getFullYear()))];
+    yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y => `<option value="${y}">${y}</option>`).join("");
+}
+    // Preserve Analytics buildAnalytics function from your original code
     function buildAnalytics(stock, salesData){
         const months = {}; const now = new Date();
         const selectedYear = yearSelect.value;
         const selectedRange = rangeSelect.value;
-
         function inRange(date){
             if(selectedYear !== "ALL" && date.getFullYear().toString() !== selectedYear) return false;
             if(selectedRange === "ALL") return true;
@@ -554,7 +678,6 @@
             if(selectedRange==="1Y") return diff <= 365*day;
             return true;
         }
-
         stock.forEach(s=>{
             const d=new Date(s.purchaseDate || s._id.substring(0,8)*1000);
             if(!inRange(d)) return;
@@ -562,7 +685,6 @@
             if(!months[key]) months[key]={investment:0,sales:0,profit:0};
             months[key].investment+=Number(s.cost||0);
         });
-
         salesData.forEach(s=>{
             const d=new Date(s.saleDate||Date.now());
             if(!inRange(d)) return;
@@ -571,23 +693,18 @@
             months[key].sales+=Number(s.soldPrice||0);
             months[key].profit+=Number(s.profit||0);
         });
-
         const labels = Object.keys(months).sort((a,b)=> new Date(a) - new Date(b));
-
         monthTable.innerHTML = labels.map(m=>{
             const x=months[m]; const roi = x.investment ? (x.profit/x.investment).toFixed(2) : "0.00";
             return `<tr><td class="p-4">${m}</td><td class="p-4 font-medium">₹${x.investment.toFixed(2)}</td><td class="p-4 font-medium">₹${x.sales.toFixed(2)}</td><td class="p-4 font-bold text-emerald-600">₹${x.profit.toFixed(2)}</td><td class="p-4 font-bold">${roi}</td></tr>`;
         }).join("");
-
         if(salesChart) salesChart.destroy();
         salesChart = new Chart(salesChartCanvas,{
             type:"bar", data:{ labels, datasets:[ {label:"Investment",data:labels.map(m=>months[m].investment), backgroundColor:'#818cf8'}, {label:"Sales",data:labels.map(m=>months[m].sales), backgroundColor:'#10b981'} ] },
             options:{ responsive:true, plugins:{ legend:{position:"top"} } }
         });
-
         let cumInv=0, cumSales=0; const invArr=[], salesArr=[];
         labels.forEach(m=>{ cumInv+=months[m].investment; cumSales+=months[m].sales; invArr.push(cumInv); salesArr.push(cumSales); });
-
         if(breakChart) breakChart.destroy();
         breakChart = new Chart(breakChartCanvas,{
             type:"line", data:{ labels, datasets:[ {label:"Cum. Investment",data:invArr, borderColor:'#f59e0b', tension:0.3}, {label:"Cum. Sales",data:salesArr, borderColor:'#6366f1', tension:0.3} ] },
@@ -596,41 +713,6 @@
     }
 
     async function logout(){ await fetch("/api/logout",{method:"POST"}); window.location.href="/login.html"; }
-
-    async function loadAll(){
-        const stock=await (await fetch("/api/stock")).json();
-        const salesData=await (await fetch("/api/sales")).json();
-        const dash=await (await fetch("/api/dashboard")).json();
-
-        investment.innerText="₹" + dash.totalInvestment.toLocaleString();
-        document.getElementById("sales").innerText="₹" + dash.totalSales.toLocaleString();
-        profit.innerText="₹" + dash.totalProfit.toLocaleString();
-        roi.innerText=dash.roi.toFixed(2);
-
-        const sf=stockFilter.value?.toLowerCase()||"";
-        const fStock=stock.filter(s=>(s.name||"").toLowerCase().includes(sf));
-        stockTable.innerHTML=fStock.map(s=>`
-            <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
-                <td class="py-3 font-medium">${s.name||""}</td><td class="py-3 text-slate-500">${s.category||""}</td>
-                <td class="py-3 text-right font-mono">${s.units||0}</td><td class="py-3 text-right font-bold">₹${s.cost||0}</td>
-            </tr>`).join("");
-        stockTotal.innerText=fStock.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
-
-        const salef=salesFilter.value?.toLowerCase()||"";
-        const fSales=salesData.filter(s=>(s.productName||"").toLowerCase().includes(salef));
-        salesTable.innerHTML=fSales.map(s=>`
-            <tr onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
-                <td class="py-3 font-medium">${s.productName||""}</td><td class="py-3 text-slate-500">${s.customerName||""}</td>
-                <td class="py-3 text-right font-bold text-emerald-600">₹${s.profit?.toFixed(2)||0}</td>
-            </tr>`).join("");
-        salesTotal.innerText=fSales.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
-
-        const years = [...new Set(salesData.map(s=>new Date(s.saleDate).getFullYear()))];
-        yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join("");
-        
-        stockCache = stock; // update local cache
-        buildAnalytics(stock,salesData);
-    }
 
     loadDropdowns(); loadAll(); changeSaleMode();
 </script>
