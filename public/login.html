@@ -1,55 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>ERP Login</title>
-<script src="https://cdn.tailwindcss.com"></script>
+    <title>Perfume ERP PRO | Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 </head>
+<body class="bg-slate-100 flex items-center justify-center h-screen px-4 font-['Inter']">
 
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-[2rem] shadow-2xl shadow-indigo-100 w-full max-w-md border border-white">
+        <div class="text-center mb-8">
+            <div class="inline-block bg-indigo-600 p-3 rounded-2xl mb-4 shadow-lg shadow-indigo-200">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            </div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Welcome Back</h2>
+            <p class="text-slate-400 font-medium mt-1">Perfume ERP PRO Management</p>
+        </div>
 
-<div class="bg-white p-8 rounded-xl shadow w-96">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase ml-1 mb-2">Username</label>
+                <input id="username" class="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" placeholder="Enter your username">
+            </div>
 
-<h2 class="text-2xl font-bold mb-4 text-center">
-Perfume ERP Login
-</h2>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase ml-1 mb-2">Password</label>
+                <input id="password" type="password" class="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" placeholder="••••••••">
+            </div>
 
-<input id="username" class="w-full p-2 border rounded mb-3"
-placeholder="Username">
+            <button onclick="login()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-0.5 active:scale-95 mt-4">
+                Sign In
+            </button>
+        </div>
 
-<input id="password" type="password"
-class="w-full p-2 border rounded mb-4"
-placeholder="Password">
-
-<button onclick="login()"
-class="w-full bg-blue-600 text-white p-2 rounded">
-Login
-</button>
-
-<p id="msg" class="text-red-600 mt-3 text-center"></p>
-
-</div>
+        <p id="msg" class="text-red-500 mt-6 text-center font-medium text-sm"></p>
+        
+        <div class="mt-8 pt-8 border-t border-slate-100 text-center">
+            <p class="text-slate-400 text-xs font-medium">Restricted Access System</p>
+        </div>
+    </div>
 
 <script>
-async function login(){
-
- const r = await fetch("/api/login",{
-  method:"POST",
-  headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({
-   username:username.value,
-   password:password.value
-  })
- });
-
- const d = await r.json();
-
- if(d.success){
-  window.location.href="/";
- }else{
-  msg.innerText="Invalid Credentials";
- }
-}
+    async function login(){
+        const r = await fetch("/api/login",{
+            method:"POST",
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                username:username.value,
+                password:password.value
+            })
+        });
+        const d = await r.json();
+        if(d.success){
+            window.location.href="/";
+        } else {
+            document.getElementById('msg').innerText = "Invalid credentials. Please try again.";
+        }
+    }
 </script>
-
 </body>
 </html>

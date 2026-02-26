@@ -101,6 +101,7 @@
                         <option>Misc</option>
                     </select>
                     <div id="dynamicFields" class="space-y-3 mt-4"></div>
+                    
                     <button onclick="addStock()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-200 mt-4">
                         Add to Inventory
                     </button>
@@ -121,10 +122,12 @@
                                 <th class="pb-3 font-semibold">Category</th>
                                 <th class="pb-3 font-semibold text-right">Units</th>
                                 <th class="pb-3 font-semibold text-right">Cost</th>
+                                
                             </tr>
                         </thead>
                         <tbody id="stockTable" class="divide-y"></tbody>
                     </table>
+                    
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
                     <span class="text-slate-500 font-medium">Total Inventory Value:</span>
@@ -293,7 +296,6 @@
         document.getElementById('tab-' + tabId).classList.add('active');
     }
 
-    // REMAINING JAVASCRIPT LOGIC (Keeping your original functional code)
     async function checkAuth(){
         const r = await fetch("/api/check-auth");
         const d = await r.json();
@@ -336,8 +338,16 @@
         <div class="grid grid-cols-2 gap-2">
             <input id="units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Units">
             <input id="cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost">
+        </div>
+        <div class="space-y-1">
+            <label class="text-[10px] uppercase font-bold text-slate-400">Purchase Date</label>
+            <input id="stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
         </div>`;
+        
         dynamicFields.innerHTML=html;
+
+        // Set default date for stock entry whenever fields are re-generated
+        document.getElementById('stockPurchaseDate').value = new Date().toISOString().split("T")[0];
     }
     changeFields();
 
@@ -429,7 +439,8 @@
             type:document.getElementById("type")?.value||"",
             size_ml:Number(document.getElementById("size")?.value||0),
             units:Number(document.getElementById("units")?.value||0),
-            cost:Number(document.getElementById("cost")?.value||0)
+            cost:Number(document.getElementById("cost")?.value||0),
+            purchaseDate: document.getElementById("stockPurchaseDate")?.value || new Date().toISOString().split("T")[0]
         };
         await fetch("/api/stock",{
             method:"POST",
@@ -522,7 +533,7 @@
         }
 
         stock.forEach(s=>{
-            const d=new Date(s._id.substring(0,8)*1000);
+            const d=new Date(s.purchaseDate || s._id.substring(0,8)*1000);
             if(!inRange(d)) return;
             const key=d.toLocaleString("default",{month:"short",year:"numeric"});
             if(!months[key]) months[key]={investment:0,sales:0,profit:0};
