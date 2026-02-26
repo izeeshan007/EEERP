@@ -267,15 +267,23 @@
                 </table>
             </div>
             <div class="grid lg:grid-cols-2 gap-8">
-                <div class="p-4 bg-white border rounded-2xl shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales vs Investment</h3>
-                    <canvas id="salesChartCanvas"></canvas>
-                </div>
-                <div class="p-4 bg-white border rounded-2xl shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Break-even Curve</h3>
-                    <canvas id="breakChartCanvas"></canvas>
-                </div>
-            </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm">
+        <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales vs Investment</h3>
+        <canvas id="salesChartCanvas"></canvas>
+    </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm">
+        <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Break-even Curve</h3>
+        <canvas id="breakChartCanvas"></canvas>
+    </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm">
+        <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Top 5 Best Sellers (by Profit)</h3>
+        <canvas id="topProductsChartCanvas"></canvas>
+    </div>
+    <div class="p-4 bg-white border rounded-2xl shadow-sm">
+        <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales Channel Distribution</h3>
+        <canvas id="channelChartCanvas"></canvas>
+    </div>
+</div>
         </div>
     </div>
 </main>
@@ -663,54 +671,128 @@
     yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y => `<option value="${y}">${y}</option>`).join("");
 }
     // Preserve Analytics buildAnalytics function from your original code
-    function buildAnalytics(stock, salesData){
-        const months = {}; const now = new Date();
-        const selectedYear = yearSelect.value;
-        const selectedRange = rangeSelect.value;
-        function inRange(date){
-            if(selectedYear !== "ALL" && date.getFullYear().toString() !== selectedYear) return false;
-            if(selectedRange === "ALL") return true;
-            const diff = now - date; const day = 1000*60*60*24;
-            if(selectedRange==="7D") return diff <= 7*day;
-            if(selectedRange==="1M") return diff <= 30*day;
-            if(selectedRange==="3M") return diff <= 90*day;
-            if(selectedRange==="6M") return diff <= 180*day;
-            if(selectedRange==="1Y") return diff <= 365*day;
-            return true;
-        }
-        stock.forEach(s=>{
-            const d=new Date(s.purchaseDate || s._id.substring(0,8)*1000);
-            if(!inRange(d)) return;
-            const key=d.toLocaleString("default",{month:"short",year:"numeric"});
-            if(!months[key]) months[key]={investment:0,sales:0,profit:0};
-            months[key].investment+=Number(s.cost||0);
-        });
-        salesData.forEach(s=>{
-            const d=new Date(s.saleDate||Date.now());
-            if(!inRange(d)) return;
-            const key=d.toLocaleString("default",{month:"short",year:"numeric"});
-            if(!months[key]) months[key]={investment:0,sales:0,profit:0};
-            months[key].sales+=Number(s.soldPrice||0);
-            months[key].profit+=Number(s.profit||0);
-        });
-        const labels = Object.keys(months).sort((a,b)=> new Date(a) - new Date(b));
-        monthTable.innerHTML = labels.map(m=>{
-            const x=months[m]; const roi = x.investment ? (x.profit/x.investment).toFixed(2) : "0.00";
-            return `<tr><td class="p-4">${m}</td><td class="p-4 font-medium">₹${x.investment.toFixed(2)}</td><td class="p-4 font-medium">₹${x.sales.toFixed(2)}</td><td class="p-4 font-bold text-emerald-600">₹${x.profit.toFixed(2)}</td><td class="p-4 font-bold">${roi}</td></tr>`;
-        }).join("");
-        if(salesChart) salesChart.destroy();
-        salesChart = new Chart(salesChartCanvas,{
-            type:"bar", data:{ labels, datasets:[ {label:"Investment",data:labels.map(m=>months[m].investment), backgroundColor:'#818cf8'}, {label:"Sales",data:labels.map(m=>months[m].sales), backgroundColor:'#10b981'} ] },
-            options:{ responsive:true, plugins:{ legend:{position:"top"} } }
-        });
-        let cumInv=0, cumSales=0; const invArr=[], salesArr=[];
-        labels.forEach(m=>{ cumInv+=months[m].investment; cumSales+=months[m].sales; invArr.push(cumInv); salesArr.push(cumSales); });
-        if(breakChart) breakChart.destroy();
-        breakChart = new Chart(breakChartCanvas,{
-            type:"line", data:{ labels, datasets:[ {label:"Cum. Investment",data:invArr, borderColor:'#f59e0b', tension:0.3}, {label:"Cum. Sales",data:salesArr, borderColor:'#6366f1', tension:0.3} ] },
-            options:{ responsive:true }
-        });
+    // Add these to your global state variables at the top of the script
+let topProductsChart = null;
+let channelChart = null;
+
+function buildAnalytics(stock, salesData) {
+    const months = {};
+    const productStats = {}; // To track profit per product
+    const channelStats = {}; // To track sales per reference channel
+    const now = new Date();
+    const selectedYear = yearSelect.value;
+    const selectedRange = rangeSelect.value;
+
+    function inRange(date) {
+        if (selectedYear !== "ALL" && date.getFullYear().toString() !== selectedYear) return false;
+        if (selectedRange === "ALL") return true;
+        const diff = now - date;
+        const day = 1000 * 60 * 60 * 24;
+        if (selectedRange === "7D") return diff <= 7 * day;
+        if (selectedRange === "1M") return diff <= 30 * day;
+        if (selectedRange === "3M") return diff <= 90 * day;
+        if (selectedRange === "6M") return diff <= 180 * day;
+        if (selectedRange === "1Y") return diff <= 365 * day;
+        return true;
     }
+
+    // Process Stock for Investment
+    stock.forEach(s => {
+        const d = new Date(s.purchaseDate || s._id.substring(0, 8) * 1000);
+        if (!inRange(d)) return;
+        const key = d.toLocaleString("default", { month: "short", year: "numeric" });
+        if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
+        months[key].investment += Number(s.cost || 0);
+    });
+
+    // Process Sales for Revenue, Profit, Top Products, and Channels
+    salesData.forEach(s => {
+        const d = new Date(s.saleDate || Date.now());
+        if (!inRange(d)) return;
+        const key = d.toLocaleString("default", { month: "short", year: "numeric" });
+        if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
+        months[key].sales += Number(s.soldPrice || 0);
+        months[key].profit += Number(s.profit || 0);
+
+        // Top Product Logic
+        const pName = s.productName || "Unknown";
+        productStats[pName] = (productStats[pName] || 0) + Number(s.profit || 0);
+
+        // Channel Distribution Logic
+        const channel = s.referenceSource || "Other";
+        channelStats[channel] = (channelStats[channel] || 0) + Number(s.soldPrice || 0);
+    });
+
+    const labels = Object.keys(months).sort((a, b) => new Date(a) - new Date(b));
+
+    // 1. Update Monthly Table
+    monthTable.innerHTML = labels.map(m => {
+        const x = months[m];
+        const roi = x.investment ? (x.profit / x.investment).toFixed(2) : "0.00";
+        return `<tr><td class="p-4">${m}</td><td class="p-4 font-medium">₹${x.investment.toFixed(2)}</td><td class="p-4 font-medium">₹${x.sales.toFixed(2)}</td><td class="p-4 font-bold text-emerald-600">₹${x.profit.toFixed(2)}</td><td class="p-4 font-bold">${roi}</td></tr>`;
+    }).join("");
+
+    // 2. Render Sales vs Investment Chart
+    if (salesChart) salesChart.destroy();
+    salesChart = new Chart(salesChartCanvas, {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [
+                { label: "Investment", data: labels.map(m => months[m].investment), backgroundColor: '#818cf8' },
+                { label: "Sales", data: labels.map(m => months[m].sales), backgroundColor: '#10b981' }
+            ]
+        },
+        options: { responsive: true, plugins: { legend: { position: "top" } } }
+    });
+
+    // 3. Render Break-even Curve
+    let cumInv = 0, cumSales = 0;
+    const invArr = [], salesArr = [];
+    labels.forEach(m => { cumInv += months[m].investment; cumSales += months[m].sales; invArr.push(cumInv); salesArr.push(cumSales); });
+
+    if (breakChart) breakChart.destroy();
+    breakChart = new Chart(breakChartCanvas, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                { label: "Cum. Investment", data: invArr, borderColor: '#f59e0b', tension: 0.3 },
+                { label: "Cum. Sales", data: salesArr, borderColor: '#6366f1', tension: 0.3 }
+            ]
+        },
+        options: { responsive: true }
+    });
+
+    // 4. NEW: Top 5 Products Chart
+    const top5Products = Object.entries(productStats)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5);
+
+    if (topProductsChart) topProductsChart.destroy();
+    topProductsChart = new Chart(topProductsChartCanvas, {
+        type: "bar",
+        data: {
+            labels: top5Products.map(p => p[0]),
+            datasets: [{ label: "Net Profit", data: top5Products.map(p => p[1]), backgroundColor: '#ec4899' }]
+        },
+        options: { indexAxis: 'y', responsive: true }
+    });
+
+    // 5. NEW: Sales Channel Pie Chart
+    if (channelChart) channelChart.destroy();
+    channelChart = new Chart(channelChartCanvas, {
+        type: "doughnut",
+        data: {
+            labels: Object.keys(channelStats),
+            datasets: [{
+                data: Object.values(channelStats),
+                backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6']
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+    });
+}
 
     async function logout(){ await fetch("/api/logout",{method:"POST"}); window.location.href="/login.html"; }
 
