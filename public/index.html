@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .tab-content { display: none; }
@@ -29,7 +31,7 @@
             display: none; justify-content: center; align-items: center;
             z-index: 50;
         }
-        tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
+        tr.sales-row:hover, #stockRecordsTable tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
         .nav-link.active {
             border-bottom: 2px solid #4f46e5;
             color: #4f46e5;
@@ -56,7 +58,7 @@
             <div class="bg-indigo-600 p-1.5 rounded-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             </div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.1</span></h1>
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.2</span></h1>
         </div>
         <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition">Logout</button>
     </div>
@@ -184,16 +186,21 @@
                         <select id="saleSize" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calculateMfgCost()"></select>
                     </div>
                     <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar Oil Name" oninput="calculateMfgCost()">
-                    <div class="grid grid-cols-2 gap-2">
+                    
+                    <div class="grid grid-cols-3 gap-2">
                         <input id="oilPercent" class="p-2.5 border rounded-xl bg-slate-50 input-focus" type="number" value="45" placeholder="Oil %" oninput="calculateMfgCost()">
                         <input id="otherCost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Misc Cost" oninput="calculateMfgCost()">
+                        <input id="saleUnits" type="number" value="1" class="p-2.5 border rounded-xl bg-slate-50 input-focus font-bold text-indigo-600" placeholder="Qty" oninput="calculateMfgCost()">
                     </div>
+
                     <div class="space-y-1">
                         <label class="text-[10px] uppercase font-bold text-slate-400">Packaging</label>
                         <div class="grid grid-cols-1 gap-2">
                             <select id="bottleCat" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
                                 <option value="NA">Bottle Quality (NA)</option><option>ECO</option><option>Moderate</option><option>Premium</option>
                             </select>
+                            <input id="bottlePriceInput" type="number" step="0.01" class="text-xs p-2 border rounded-lg bg-slate-50" placeholder="Bottle Price (Manual Override)" oninput="updateTotalFromManual()">
+                            
                             <select id="boxNameSelect" class="text-xs p-2 border rounded-lg bg-slate-50" onchange="calculateMfgCost()">
                                 <option value="NA">Select Box (NA)</option>
                             </select>
@@ -202,11 +209,16 @@
                             </select>
                         </div>
                     </div>
+
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost</label>
+                        <label class="text-xs font-bold text-indigo-400 uppercase">Est. Mfg Cost (Total for Order)</label>
                         <input id="mfg" type="number" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none" value="0.00">
                     </div>
-                    <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹">
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹">
+                        <input id="saleDiscount" class="w-full p-2.5 border border-orange-200 rounded-xl bg-orange-50 input-focus font-bold" type="number" placeholder="Discount ₹" value="0">
+                    </div>
                     
                     <div class="flex gap-4 p-2 bg-slate-50 rounded-xl border">
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -220,29 +232,35 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
-                        <input id="customer" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Customer">
-                        <input id="reference" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Reference">
+                        <input id="customer" list="customerList" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Customer">
+                        <input id="reference" list="referenceList" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Reference">
                     </div>
                     <input id="date" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
                     <button onclick="addSale()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-200 mt-2">Complete Sale</button>
+                    <p id="saleMsg" class="text-center text-sm font-medium text-emerald-600 mt-1"></p>
                 </div>
             </div>
 
             <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-slate-800">Sales History</h2>
-                    <button onclick="clearFilters('sales')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
+                    <div class="flex gap-3 items-center">
+                        <button onclick="printSelectedInvoices()" id="printSelectedBtn" class="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition hidden shadow-sm shadow-teal-200">Print Selected</button>
+                        <button onclick="clearFilters('sales')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm" id="salesRecordsTable">
                         <thead>
                             <tr class="text-slate-500 border-b">
+                                <th class="pb-2 w-8"></th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'productName')">Product ↕</th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'customerName')">Customer ↕</th>
                                 <th class="pb-2 font-semibold text-center">Status</th>
-                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'profit')">Profit ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'soldPrice')">Amount ↕</th>
                             </tr>
                             <tr class="bg-slate-50/50">
+                                <th class="py-2"></th>
                                 <th class="py-2 pr-2"><input type="text" id="filter-sales-product" class="filter-input" placeholder="Filter product..." oninput="renderSalesTable()"></th>
                                 <th class="py-2 pr-2"><input type="text" id="filter-sales-customer" class="filter-input" placeholder="Filter customer..." oninput="renderSalesTable()"></th>
                                 <th class="py-2 pr-2">
@@ -259,7 +277,7 @@
                     </table>
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">Filtered Sales:</span>
+                    <span class="text-slate-500 font-medium">Filtered Sales Total:</span>
                     <span class="text-lg font-bold text-emerald-600">₹ <span id="salesTotal">0</span></span>
                 </div>
             </div>
@@ -325,10 +343,11 @@
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
         <div id="modalBody" class="p-6 grid gap-4"></div>
-        <div class="p-6 bg-slate-50 flex gap-3">
-            <button onclick="saveModal()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl font-semibold hover:bg-indigo-700 transition">Update</button>
-            <button onclick="deleteModal()" class="flex-1 bg-red-100 text-red-600 py-2 rounded-xl font-semibold hover:bg-red-200 transition">Delete</button>
-            <button onclick="closeModal()" class="px-4 py-2 text-slate-500 font-medium">Cancel</button>
+        <div class="p-6 bg-slate-50 flex gap-2">
+            <button onclick="saveModal()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">Update</button>
+            <button id="printInvoiceBtn" onclick="printInvoice()" class="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-teal-700 transition hidden">Print</button>
+            <button onclick="deleteModal()" class="flex-1 bg-red-100 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition">Delete</button>
+            <button onclick="closeModal()" class="px-3 py-2 text-slate-500 text-sm font-medium">Cancel</button>
         </div>
     </div>
 </div>
@@ -337,6 +356,8 @@
 <datalist id="nameList"></datalist>
 <datalist id="designerList"></datalist>
 <datalist id="supplierList"></datalist>
+<datalist id="customerList"></datalist>
+<datalist id="referenceList"></datalist>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -351,7 +372,6 @@
     let stockSort = { key: 'id', dir: -1 };
     let salesSort = { key: 'id', dir: -1 };
 
-    // --- Tab Logic ---
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -374,7 +394,6 @@
         renderSalesTable();
     }
 
-    // --- Dynamic Entry Logic ---
     function changeFields(){
         const c = category.value;
         dynamicFields.innerHTML = getFieldsHTML(c);
@@ -386,7 +405,6 @@
 
     function getFieldsHTML(c, data = {}) {
         let html = "";
-        // RESTORED list="nameList" functionality
         if (c !== "Bottle") {
             html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" value="${data.name || ''}">`;
         }
@@ -400,8 +418,10 @@
                 <option value="500" ${data.size_ml==500?'selected':''}>500 ml</option><option value="1000" ${data.size_ml==1000?'selected':''}>1000 ml</option>
             </select>`;
         }
-        if(c === "Raw Perfume" || c === "Aroma Chemical"){
-            html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in ml" value="${data.size_ml || ''}">`;
+        if(c === "Raw Perfume") {
+             html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in ml" value="${data.size_ml || ''}">`;
+        } else if(c === "Aroma Chemical"){
+             html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in grams" value="${data.size_ml || ''}">`;
         }
         if(c === "Bottle"){
             html += `
@@ -440,7 +460,6 @@
         nameList.innerHTML = filteredNames.map(v => `<option value="${v}">`).join("");
     }
 
-    // --- Filter & Sort Logic ---
     function setSort(table, key) {
         if(table === 'stock') {
             stockSort.dir = (stockSort.key === key) ? stockSort.dir * -1 : 1;
@@ -479,7 +498,7 @@
             <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
                 <td class="py-3 font-medium">${s.name||""}</td>
                 <td class="py-3 text-slate-500">${s.category||""}</td>
-                <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + 'ml' : s.units + ' U'}</td>
+                <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + (s.category === 'Aroma Chemical' ? 'g' : 'ml') : s.units + ' U'}</td>
                 <td class="py-3 text-right font-bold">₹${s.cost||0}</td>
             </tr>`).join("");
         stockTotal.innerText = filtered.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
@@ -505,7 +524,10 @@
         });
 
         salesTable.innerHTML = filtered.map(s => `
-            <tr onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+            <tr class="sales-row" onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+                <td class="py-3 pl-2" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${s._id}" onchange="togglePrintButton()">
+                </td>
                 <td class="py-3 font-medium">${s.productName||""}</td>
                 <td class="py-3 text-slate-500">${s.customerName||""}</td>
                 <td class="py-3 text-center">
@@ -514,30 +536,47 @@
                         <span class="w-2 h-2 rounded-full ${s.isPaid ? 'bg-emerald-500' : 'bg-red-500'}"></span>
                     </div>
                 </td>
-                <td class="py-3 text-right font-bold text-emerald-600">₹${s.profit?.toFixed(2)||0}</td>
+                <td class="py-3 text-right font-bold text-slate-800">₹${s.soldPrice?.toFixed(2)||0}</td>
             </tr>`).join("");
         salesTotal.innerText = filtered.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
+        togglePrintButton(); // Re-check button visibility on render
     }
 
-    // --- Modal Control ---
+    function togglePrintButton() {
+        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
+        const printBtn = document.getElementById('printSelectedBtn');
+        if(checkedBoxes.length > 0) {
+            printBtn.classList.remove('hidden');
+        } else {
+            printBtn.classList.add('hidden');
+        }
+    }
+
     function openModal(type, data){
         editType = type; editId = data._id;
         modal.style.display = "flex";
         modalTitle.innerText = type === "stock" ? `Edit Stock: ${data.category}` : "Edit Sale Record";
+        
+        const printBtn = document.getElementById("printInvoiceBtn");
 
         if(type === "stock") {
-            // Updated to ensure datalist is populated for the category being edited
+            printBtn.classList.add("hidden");
             updateNameList(data.category);
             modalBody.innerHTML = getFieldsHTML(data.category, data);
         } else {
+            printBtn.classList.remove("hidden");
             modalBody.innerHTML = `
-                <div class="grid grid-cols-2 gap-2">
-                    <input id="e_mfg" placeholder="Mfg Cost" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
-                    <input id="e_sold" placeholder="Sold Price" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
+                <div class="grid grid-cols-3 gap-2">
+                    <input id="e_mfg" placeholder="Total Mfg Cost" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
+                    <input id="e_sold" placeholder="Total Sold Price" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
+                    <input id="e_discount" placeholder="Discount ₹" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.discount||0}">
                 </div>
-                <input id="e_productName" placeholder="Product" class="p-2.5 border rounded-xl bg-slate-50" value="${data.productName||""}">
-                <input id="e_customerName" placeholder="Customer" class="p-2.5 border rounded-xl bg-slate-50" value="${data.customerName||""}">
-                <input id="e_referenceSource" placeholder="Reference" class="p-2.5 border rounded-xl bg-slate-50" value="${data.referenceSource||""}">
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="e_productName" placeholder="Product" class="p-2.5 border rounded-xl bg-slate-50" value="${data.productName||""}">
+                    <input id="e_units" placeholder="Units Sold" class="p-2.5 border rounded-xl bg-slate-50 font-bold" type="number" value="${data.units||1}">
+                </div>
+                <input id="e_customerName" list="customerList" placeholder="Customer" class="p-2.5 border rounded-xl bg-slate-50" value="${data.customerName||""}">
+                <input id="e_referenceSource" list="referenceList" placeholder="Reference" class="p-2.5 border rounded-xl bg-slate-50" value="${data.referenceSource||""}">
                 <input id="e_saleDate" type="date" class="p-2.5 border rounded-xl bg-slate-50" value="${data.saleDate ? data.saleDate.split('T')[0] : ''}">
                 <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
                     <label class="flex items-center gap-2 cursor-pointer">
@@ -570,14 +609,16 @@
             };
         } else {
             body = {
-                productName: e_productName.value,
-                customerName: e_customerName.value,
-                referenceSource: e_referenceSource.value,
-                manufacturingCost: Number(e_mfg.value),
-                soldPrice: Number(e_sold.value),
-                saleDate: e_saleDate.value,
-                isDelivered: e_isDelivered.checked,
-                isPaid: e_isPaid.checked
+                productName: document.getElementById("e_productName").value,
+                customerName: document.getElementById("e_customerName").value,
+                referenceSource: document.getElementById("e_referenceSource").value,
+                manufacturingCost: Number(document.getElementById("e_mfg").value),
+                soldPrice: Number(document.getElementById("e_sold").value),
+                discount: Number(document.getElementById("e_discount").value || 0),
+                saleDate: document.getElementById("e_saleDate").value,
+                units: Number(document.getElementById("e_units").value),
+                isDelivered: document.getElementById("e_isDelivered").checked,
+                isPaid: document.getElementById("e_isPaid").checked
             };
         }
         await fetch(`/api/${editType}/${editId}`, {
@@ -610,33 +651,85 @@
 
     function calculateMfgCost(){
         const oil = stockCache.find(s => s.name === productName.value && s.category === "Attar Oil");
-        if(!oil) return;
-        const qty = Number(saleSize.value || 0);
+        const qtySize = Number(saleSize.value || 0);
+        const orderQty = Number(saleUnits.value || 1);
         const oilPercentVal = Number(oilPercent.value || 0);
         const extraCost = Number(otherCost.value || 0);
-        let totalCost = 0;
-        if(saleCat.value === "Attar"){
-            totalCost += (oil.pricePerUnit || 0) * qty;
+        const bottleQuality = bottleCat.value;
+        
+        let unitCost = 0;
+
+        if(oil) {
+            if(saleCat.value === "Attar"){
+                unitCost += (oil.pricePerUnit || 0) * qtySize;
+            } else {
+                const oilQty = qtySize * (oilPercentVal / 100);
+                const ethanolQty = qtySize - oilQty;
+                const ethStock = stockCache.find(s => s.name?.toLowerCase().includes("ethanol"));
+                unitCost += (oilQty * (oil.pricePerUnit || 0)) + (ethanolQty * (ethStock ? ethStock.pricePerUnit : 0));
+            }
+        }
+
+        if(bottleQuality !== "NA"){
+            const b = stockCache.find(s => s.category === "Bottle" && s.subCategory === bottleQuality && s.size_ml === qtySize);
+            if(b) {
+                bottlePriceInput.value = b.pricePerUnit.toFixed(2);
+                bottlePriceInput.style.borderColor = "";
+                bottlePriceInput.style.backgroundColor = "";
+            } else {
+                bottlePriceInput.style.borderColor = "#f43f5e";
+                bottlePriceInput.style.backgroundColor = "#fff1f2";
+            }
         } else {
-            const oilQty = qty * (oilPercentVal / 100);
-            const ethanolQty = qty - oilQty;
-            const ethStock = stockCache.find(s => s.name?.toLowerCase().includes("ethanol"));
-            totalCost += (oilQty * (oil.pricePerUnit || 0)) + (ethanolQty * (ethStock ? ethStock.pricePerUnit : 0));
+            bottlePriceInput.value = 0;
+            bottlePriceInput.style.borderColor = "";
         }
-        if(bottleCat.value !== "NA"){
-            const b = stockCache.find(s => s.category === "Bottle" && s.subCategory === bottleCat.value && s.size_ml === qty);
-            if(b) totalCost += b.pricePerUnit || 0;
-        }
+
         if(boxNameSelect.value !== "NA"){
             const box = stockCache.find(s => s.category === "Box" && s.name === boxNameSelect.value);
-            if(box) totalCost += box.pricePerUnit || 0;
+            if(box) unitCost += box.pricePerUnit || 0;
         }
         if(pouchNameSelect.value !== "NA"){
             const pouch = stockCache.find(s => s.category === "Pouch" && s.name === pouchNameSelect.value);
-            if(pouch) totalCost += pouch.pricePerUnit || 0;
+            if(pouch) unitCost += pouch.pricePerUnit || 0;
         }
-        totalCost += extraCost;
-        mfg.value = totalCost.toFixed(2);
+
+        updateTotalFromManual();
+    }
+
+    function updateTotalFromManual() {
+        const oil = stockCache.find(s => s.name === productName.value && s.category === "Attar Oil");
+        const qtySize = Number(saleSize.value || 0);
+        const orderQty = Number(saleUnits.value || 1);
+        const oilPercentVal = Number(oilPercent.value || 0);
+        const extraCost = Number(otherCost.value || 0);
+        const manualBottle = Number(bottlePriceInput.value || 0);
+
+        let perUnit = 0;
+        if(oil) {
+             if(saleCat.value === "Attar"){
+                perUnit += (oil.pricePerUnit || 0) * qtySize;
+            } else {
+                const oilQty = qtySize * (oilPercentVal / 100);
+                const ethanolQty = qtySize - oilQty;
+                const ethStock = stockCache.find(s => s.name?.toLowerCase().includes("ethanol"));
+                perUnit += (oilQty * (oil.pricePerUnit || 0)) + (ethanolQty * (ethStock ? ethStock.pricePerUnit : 0));
+            }
+        }
+
+        perUnit += manualBottle;
+
+        if(boxNameSelect.value !== "NA"){
+            const box = stockCache.find(s => s.category === "Box" && s.name === boxNameSelect.value);
+            if(box) perUnit += box.pricePerUnit || 0;
+        }
+        if(pouchNameSelect.value !== "NA"){
+            const pouch = stockCache.find(s => s.category === "Pouch" && s.name === pouchNameSelect.value);
+            if(pouch) perUnit += pouch.pricePerUnit || 0;
+        }
+
+        const grandTotal = (perUnit * orderQty) + extraCost;
+        mfg.value = grandTotal.toFixed(2);
     }
 
     function changeSaleMode(){
@@ -667,15 +760,27 @@
             purchaseDate: document.getElementById("stockPurchaseDate")?.value
         };
         await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        
+        const msg = document.getElementById("stockMsg");
+        msg.innerText = "Stock added successfully!";
+        setTimeout(() => msg.innerText = "", 3000);
+
         loadAll(); loadDropdowns();
     }
 
     async function addSale(){
         await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
             productName:productName.value, customerName:customer.value, referenceSource:reference.value,
-            manufacturingCost:Number(mfg.value), soldPrice:Number(sold.value), saleDate:date.value, size_ml:Number(saleSize.value),
+            manufacturingCost:Number(mfg.value), soldPrice:Number(sold.value), discount:Number(saleDiscount.value || 0), 
+            saleDate:date.value, size_ml:Number(saleSize.value),
+            units: Number(saleUnits.value),
             isDelivered: saleDelivered.checked, isPaid: salePaid.checked
         })});
+
+        const msg = document.getElementById("saleMsg");
+        msg.innerText = "Sale completed successfully!";
+        setTimeout(() => msg.innerText = "", 3000);
+
         loadAll();
     }
 
@@ -711,6 +816,10 @@
 
         stockCache = stock;
         salesCache = salesData;
+
+        document.getElementById('customerList').innerHTML = [...new Set(salesData.map(s=>s.customerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
+        document.getElementById('referenceList').innerHTML = [...new Set(salesData.map(s=>s.referenceSource))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
+
         renderStockTable();
         renderSalesTable();
         buildAnalytics(stock, salesData);
@@ -799,6 +908,108 @@
             data: { labels: Object.keys(channelStats), datasets: [{ data: Object.values(channelStats), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6'] }] },
             options: { responsive: true, plugins: { legend: { position: "bottom" } } }
         });
+    }
+
+    // --- PDF INVOICE GENERATOR (SINGLE & MULTIPLE) ---
+    function printInvoice() {
+        const doc = new window.jspdf.jsPDF();
+        const sale = salesCache.find(s => s._id === editId);
+        if(!sale) return;
+
+        const img = new Image();
+        img.src = '/logo.png';
+        img.onload = function() {
+            doc.addImage(img, 'PNG', 14, 10, 30, 30);
+            generatePDFText(doc, [sale]);
+        };
+        img.onerror = function() {
+            generatePDFText(doc, [sale]);
+        };
+    }
+
+    function printSelectedInvoices() {
+        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
+        if(checkedBoxes.length === 0) return;
+
+        const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+        const selectedSales = salesCache.filter(s => selectedIds.includes(s._id));
+
+        const doc = new window.jspdf.jsPDF();
+        
+        const img = new Image();
+        img.src = '/logo.png';
+        img.onload = function() {
+            doc.addImage(img, 'PNG', 14, 10, 30, 30);
+            generatePDFText(doc, selectedSales, true);
+        };
+        img.onerror = function() {
+            generatePDFText(doc, selectedSales, true);
+        };
+    }
+
+    function generatePDFText(doc, sales, isBulk = false) {
+        doc.setFontSize(22);
+        doc.setTextColor(79, 70, 229); 
+        doc.text("Eternal Essence", 50, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("Mumbai 400011", 50, 28);
+        
+        doc.setFontSize(16);
+        doc.setTextColor(40);
+        doc.text("INVOICE", 14, 50);
+
+        const firstSale = sales[0];
+        doc.setFontSize(10);
+        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 14, 58);
+        doc.text(`Customer: ${firstSale.customerName || 'Cash Customer'}`, 14, 64);
+        if (!isBulk && firstSale.referenceSource) doc.text(`Reference: ${firstSale.referenceSource}`, 14, 70);
+
+        let totalDiscount = 0;
+        let grandTotal = 0;
+
+        const tableBody = sales.map(sale => {
+            const discount = sale.discount || 0;
+            const itemTotal = sale.soldPrice || 0;
+            const subTotal = itemTotal + discount;
+            
+            totalDiscount += discount;
+            grandTotal += itemTotal;
+
+            return [
+                sale.productName || 'Perfume / Attar',
+                sale.units || 1,
+                `Rs ${subTotal.toFixed(2)}`,
+                `Rs ${subTotal.toFixed(2)}`
+            ];
+        });
+
+        doc.autoTable({
+            startY: 80,
+            head: [['Item Description', 'Qty', 'Price', 'Total']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] }
+        });
+
+        const finalY = doc.lastAutoTable.finalY || 80;
+        
+        if (totalDiscount > 0) {
+            doc.text(`Total Discount: Rs ${totalDiscount.toFixed(2)}`, 140, finalY + 10);
+        }
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Grand Total: Rs ${grandTotal.toFixed(2)}`, 140, finalY + (totalDiscount > 0 ? 18 : 10));
+
+        const fileName = isBulk ? `Invoice_Bulk_${Date.now()}.pdf` : `Invoice_${firstSale.customerName || 'Customer'}_${firstSale._id}.pdf`;
+        doc.save(fileName);
+
+        if(isBulk) {
+            document.querySelectorAll('.sale-checkbox').forEach(cb => cb.checked = false);
+            togglePrintButton();
+        }
     }
 
     async function logout(){ await fetch("/api/logout",{method:"POST"}); window.location.href="/login.html"; }
