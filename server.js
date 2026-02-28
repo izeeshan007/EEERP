@@ -140,7 +140,6 @@ app.delete("/api/sales/:id", requireAuth, async(req,res)=>{
 
 /* ================= INVOICES ================= */
 
-// Merge Sales into an Invoice
 app.post("/api/sales/merge", requireAuth, async(req,res)=>{
   const { ids } = req.body;
   if (!ids || !ids.length) return res.json({success:false});
@@ -154,33 +153,88 @@ app.post("/api/sales/merge", requireAuth, async(req,res)=>{
   res.json({ success: true, invoiceNumber });
 });
 
-// Update Invoice Details (GST, Discount & Customer info)
-// Automatically handles proportional discounts for items!
+// NEW: Add existing sales to an existing invoice
+app.post("/api/sales/add-to-invoice", requireAuth, async(req,res)=>{
+    const { ids, invoiceNumber } = req.body;
+    if (!ids || !ids.length || !invoiceNumber) return res.json({success:false});
+    
+    // Find one existing item to inherit the tax/discount configuration
+    const existingItem = await Sale.findOne({ invoiceNumber });
+    
+    await Sale.updateMany({ _id: { $in: ids } }, { 
+        $set: { 
+            invoiceNumber,
+            invoiceDiscount: existingItem ? existingItem.invoiceDiscount : 0,
+            cgstPercent: existingItem ? existingItem.cgstPercent : 0,
+            sgstPercent: existingItem ? existingItem.sgstPercent : 0,
+            igstPercent: existingItem ? existingItem.igstPercent : 0,
+            customerAddress: existingItem ? existingItem.customerAddress : "",
+            customerPhone: existingItem ? existingItem.customerPhone : ""
+        } 
+    });
+    
+    // We must recalculate proportional discount immediately after adding items
+    recalculateInvoiceDiscount(invoiceNumber);
+    
+    res.json({ success: true });
+});
+
+// NEW: Remove an item from an invoice
+app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
+    const { id } = req.body;
+    const sale = await Sale.findById(id);
+    if (!sale) return res.json({success:false});
+    
+    const invNum = sale.invoiceNumber;
+    
+    // Un-link the item and reset its personal discount calculation
+    sale.invoiceNumber = null;
+    sale.invoiceDiscount = 0;
+    sale.discount = 0;
+    sale.profit = sale.soldPrice - sale.manufacturingCost;
+    sale.cgstPercent = 0;
+    sale.sgstPercent = 0;
+    sale.igstPercent = 0;
+    sale.customerAddress = "";
+    sale.customerPhone = "";
+    await sale.save();
+    
+    // Recalculate proportional discount for the REMAINING items in that invoice
+    if(invNum) recalculateInvoiceDiscount(invNum);
+    
+    res.json({ success: true });
+});
+
 app.put("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
   const { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } = req.body;
   
-  const items = await Sale.find({ invoiceNumber: req.params.invoiceNumber });
-  const subTotal = items.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
-
-  // Distribute the global discount proportionally across all items
-  for (const item of items) {
-      const itemDiscount = subTotal > 0 ? (item.soldPrice / subTotal) * invoiceDiscount : 0;
-      const newProfit = item.soldPrice - itemDiscount - item.manufacturingCost;
-
-      await Sale.findByIdAndUpdate(item._id, {
-          invoiceDiscount,
-          discount: itemDiscount,
-          profit: newProfit,
-          cgstPercent, 
-          sgstPercent, 
-          igstPercent, 
-          customerAddress, 
-          customerPhone
-      });
-  }
+  await Sale.updateMany(
+      { invoiceNumber: req.params.invoiceNumber },
+      { $set: { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } }
+  );
   
+  recalculateInvoiceDiscount(req.params.invoiceNumber);
   res.json({ success: true });
 });
+
+// Helper to calculate proportional discount spread
+async function recalculateInvoiceDiscount(invoiceNumber) {
+    const items = await Sale.find({ invoiceNumber });
+    if(items.length === 0) return;
+    
+    const subTotal = items.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+    const invoiceDiscount = items[0].invoiceDiscount || 0; // all should have the same
+
+    for (const item of items) {
+        const itemDiscount = subTotal > 0 ? (item.soldPrice / subTotal) * invoiceDiscount : 0;
+        const newProfit = item.soldPrice - itemDiscount - item.manufacturingCost;
+
+        await Sale.findByIdAndUpdate(item._id, {
+            discount: itemDiscount,
+            profit: newProfit
+        });
+    }
+}
 
 /* ================= DASHBOARD ================= */
 

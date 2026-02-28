@@ -380,6 +380,27 @@
     </div>
 </div>
 
+<div id="addItemsToInvoiceModal" class="modal" style="z-index: 60;">
+    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-2xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b flex justify-between items-center bg-indigo-50">
+            <h2 class="text-lg font-bold text-indigo-900">Add Items to <span id="targetInvoiceDisplay"></span></h2>
+            <button onclick="closeAddItemsModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 border-b bg-slate-50">
+            <input type="text" id="filter-add-items" class="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500" placeholder="Search ungrouped items..." oninput="renderAddItemsTable()">
+        </div>
+        <div class="p-0 overflow-x-auto max-h-96">
+            <table class="w-full text-left text-sm">
+                <tbody id="addItemsBody" class="divide-y"></tbody>
+            </table>
+        </div>
+        <div class="p-6 bg-slate-50 flex justify-between items-center">
+            <button onclick="addSelectedItemsToInvoice()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition shadow-sm">Add Selected Items</button>
+            <button onclick="closeAddItemsModal()" class="px-4 py-2 text-slate-500 font-medium hover:text-slate-700">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div id="invoiceItemsModal" class="modal">
     <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-4xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
         <div class="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
@@ -387,7 +408,10 @@
                 <h2 id="invoiceItemsTitle" class="text-xl font-bold text-slate-800">Invoice Details</h2>
                 <p id="invoiceItemsCustomer" class="text-sm text-slate-500 font-medium"></p>
             </div>
-            <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+            <div class="flex items-center gap-3">
+                <button onclick="openAddItemsModal()" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 transition">+ Add Item</button>
+                <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+            </div>
         </div>
         
         <div class="p-6 border-b grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -448,7 +472,7 @@
                         <th class="pb-2 font-semibold">Product</th>
                         <th class="pb-2 text-center font-semibold">Status</th>
                         <th class="pb-2 text-right font-semibold">Gross Price</th>
-                        <th class="pb-2 text-center font-semibold">Action</th>
+                        <th class="pb-2 text-right font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="invoiceItemsBody" class="divide-y"></tbody>
@@ -481,7 +505,7 @@
     // --- Global State ---
     let stockCache = [];
     let salesCache = [];
-    let globalDashData = null; // Store for dashboard toggles
+    let globalDashData = null; 
     let editType = "", editId = "";
     let currentInvoiceGroup = null;
     let salesChart = null, breakChart = null;
@@ -628,8 +652,8 @@
         const statusFilter = document.getElementById('filter-sales-status').value;
         const showProfit = document.getElementById('showTableProfit')?.checked;
 
-        // Display ALL items. If invoiced, disable checkbox.
         let filtered = salesCache.filter(s => {
+            if(s.invoiceNumber) return false; 
             const matchesSearch = (s.productName || "").toLowerCase().includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
             let matchesStatus = true;
             if(statusFilter === 'undelivered') matchesStatus = s.isDelivered === false;
@@ -648,12 +672,9 @@
             const netPrice = (item.soldPrice || 0) - (item.discount || 0);
 
             return `
-            <tr class="sales-row ${item.invoiceNumber ? 'bg-slate-50/50' : ''}" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
+            <tr class="sales-row" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
                 <td class="py-3 pl-2" onclick="event.stopPropagation()">
-                    ${item.invoiceNumber 
-                        ? `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">INV</span>` 
-                        : `<input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">`
-                    }
+                    <input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">
                 </td>
                 <td class="py-3 font-medium">${item.productName||""}</td>
                 <td class="py-3 text-slate-500">${item.customerName||""}</td>
@@ -671,8 +692,7 @@
 
         salesTotal.innerText = filtered.reduce((a,b)=>a+((b.soldPrice||0)-(b.discount||0)),0).toFixed(2);
         togglePrintButton(); 
-        
-        renderInvoicesTable(); // Keep Invoices Tab synced
+        renderInvoicesTable(); 
     }
 
     function renderInvoicesTable() {
@@ -742,7 +762,6 @@
         document.getElementById('inv_igst').style.display = document.getElementById('chk_igst').checked ? 'block' : 'none';
     }
 
-    // --- Dashboard View Update ---
     function updateDashboardView() {
         if (!globalDashData) return;
         const show = document.getElementById('showMainProfit')?.checked;
@@ -752,18 +771,20 @@
     // --- Invoice Modal Handlers ---
     function openInvoiceModal(invoiceNumber) {
         currentInvoiceGroup = invoiceNumber;
-        const items = salesCache.filter(s => s.invoiceNumber === invoiceNumber);
-        if (items.length === 0) return;
+        refreshInvoiceItemsList();
+        document.getElementById('invoiceItemsModal').style.display = "flex";
+    }
+
+    function refreshInvoiceItemsList() {
+        const items = salesCache.filter(s => s.invoiceNumber === currentInvoiceGroup);
+        if (items.length === 0) { closeInvoiceModal(); return; }
         
         const first = items[0];
-        document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${invoiceNumber}`;
+        document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${currentInvoiceGroup}`;
         document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.customerName || 'N/A'}`;
         
-        // Fill Contact Info
         document.getElementById('inv_address').value = first.customerAddress || "";
         document.getElementById('inv_phone').value = first.customerPhone || "";
-
-        // Fill GST/Discount logic
         document.getElementById('inv_discount').value = first.invoiceDiscount || 0;
         
         document.getElementById('chk_cgst').checked = (first.cgstPercent > 0);
@@ -778,8 +799,8 @@
         toggleGSTInputs();
 
         document.getElementById('invoiceItemsBody').innerHTML = items.map(s => `
-            <tr>
-                <td class="py-3 font-medium">${s.productName||""}</td>
+            <tr class="hover:bg-slate-50">
+                <td class="py-3 font-medium px-2">${s.productName||""}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
                         <span class="w-2 h-2 rounded-full ${s.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
@@ -787,13 +808,14 @@
                     </div>
                 </td>
                 <td class="py-3 text-right font-bold text-slate-800">₹${s.soldPrice?.toFixed(2)||0}</td>
-                <td class="py-3 text-center">
-                    <button onclick='editInvoiceItem(${JSON.stringify(s).replace(/"/g,"&quot;")})' class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded hover:bg-indigo-200 transition">Edit</button>
+                <td class="py-3 text-right pr-2">
+                    <div class="flex gap-2 justify-end">
+                        <button onclick='editInvoiceItem(${JSON.stringify(s).replace(/"/g,"&quot;")})' class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600 px-2 py-1.5 rounded hover:bg-indigo-200 transition">Edit</button>
+                        <button onclick='removeItemFromInvoice("${s._id}")' class="text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600 px-2 py-1.5 rounded hover:bg-rose-200 transition">Remove</button>
+                    </div>
                 </td>
             </tr>
         `).join("");
-        
-        document.getElementById('invoiceItemsModal').style.display = "flex";
     }
 
     function closeInvoiceModal() { 
@@ -804,6 +826,66 @@
     function editInvoiceItem(item) {
         closeInvoiceModal();
         openModal("sales", item);
+    }
+
+    async function removeItemFromInvoice(itemId) {
+        if(!confirm("Remove this item from the invoice?")) return;
+        await fetch("/api/sales/remove-from-invoice", {
+            method: "POST", headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: itemId })
+        });
+        await loadAll(); // refresh cache
+        if (currentInvoiceGroup) refreshInvoiceItemsList(); // re-render modal
+    }
+
+    // --- ADD ITEMS TO INVOICE MODAL ---
+    function openAddItemsModal() {
+        document.getElementById('targetInvoiceDisplay').innerText = currentInvoiceGroup;
+        document.getElementById('filter-add-items').value = '';
+        renderAddItemsTable();
+        document.getElementById('addItemsToInvoiceModal').style.display = "flex";
+    }
+
+    function closeAddItemsModal() {
+        document.getElementById('addItemsToInvoiceModal').style.display = "none";
+    }
+
+    function renderAddItemsTable() {
+        const filterText = document.getElementById('filter-add-items').value.toLowerCase();
+        
+        let ungroupedSales = salesCache.filter(s => !s.invoiceNumber && (s.productName || "").toLowerCase().includes(filterText));
+        
+        document.getElementById('addItemsBody').innerHTML = ungroupedSales.map(item => `
+            <tr class="hover:bg-slate-100 cursor-pointer" onclick="toggleAddCheckbox('${item._id}')">
+                <td class="py-3 px-4 w-8">
+                    <input type="checkbox" id="chk_add_${item._id}" class="add-item-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" value="${item._id}" onclick="event.stopPropagation()">
+                </td>
+                <td class="py-3 font-medium">${item.productName||""}</td>
+                <td class="py-3 text-slate-500 text-xs">${item.customerName||"N/A"}</td>
+                <td class="py-3 text-right font-bold text-slate-800 pr-4">₹${item.soldPrice?.toFixed(2)||0}</td>
+            </tr>
+        `).join("");
+    }
+
+    function toggleAddCheckbox(id) {
+        const chk = document.getElementById(`chk_add_${id}`);
+        chk.checked = !chk.checked;
+    }
+
+    async function addSelectedItemsToInvoice() {
+        const checkedBoxes = document.querySelectorAll('.add-item-checkbox:checked');
+        if(checkedBoxes.length === 0) return;
+
+        let idsToAdd = Array.from(checkedBoxes).map(cb => cb.value);
+
+        await fetch("/api/sales/add-to-invoice", {
+            method: "POST", headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ids: idsToAdd, invoiceNumber: currentInvoiceGroup })
+        });
+        
+        closeAddItemsModal();
+        await loadAll();
+        refreshInvoiceItemsList();
     }
 
     async function saveInvoiceDetails() {
@@ -823,7 +905,8 @@
         });
         
         alert("Invoice Details Saved Successfully!");
-        loadAll();
+        await loadAll();
+        refreshInvoiceItemsList();
     }
 
     // --- Merge API Request ---
@@ -1088,8 +1171,8 @@
         const salesData = await (await fetch("/api/sales")).json();
         const dash = await (await fetch("/api/dashboard")).json();
 
-        globalDashData = dash; // Store globally for toggle view
-        updateDashboardView(); // Render Main Profit
+        globalDashData = dash; 
+        updateDashboardView(); 
 
         investment.innerText = "₹" + dash.totalInvestment.toLocaleString();
         document.getElementById("sales").innerText = "₹" + dash.totalSales.toLocaleString();
