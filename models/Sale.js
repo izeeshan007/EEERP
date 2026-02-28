@@ -13,6 +13,8 @@ const SaleSchema = new mongoose.Schema({
   profit: Number,
   profitPercent: Number,
   // --- New Fields ---
+  discount: { type: Number, default: 0 },
+  invoiceNumber: { type: String, default: null }, // Used to merge multiple items into one invoice
   isDelivered: { type: Boolean, default: false },
   isPaid: { type: Boolean, default: false },
   // ------------------

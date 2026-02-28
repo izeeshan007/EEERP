@@ -31,7 +31,7 @@
             display: none; justify-content: center; align-items: center;
             z-index: 50;
         }
-        tr.sales-row:hover, #stockRecordsTable tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
+        tr.sales-row:hover, #stockRecordsTable tr:hover, #invoicesRecordsTable tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
         .nav-link.active {
             border-bottom: 2px solid #4f46e5;
             color: #4f46e5;
@@ -103,6 +103,7 @@
     <div class="flex gap-6 border-b mb-6 overflow-x-auto">
         <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Inventory Stock</button>
         <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales & Billing</button>
+        <button onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
         <button onclick="showTab('analytics')" id="tab-analytics" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Business Analytics</button>
     </div>
 
@@ -243,8 +244,9 @@
 
             <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-slate-800">Sales History</h2>
+                    <h2 class="text-lg font-bold text-slate-800">Ungrouped Sales</h2>
                     <div class="flex gap-3 items-center">
+                        <button onclick="mergeSelectedSales()" id="mergeInvoicesBtn" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition hidden shadow-sm shadow-indigo-200">Merge to Invoice</button>
                         <button onclick="printSelectedInvoices()" id="printSelectedBtn" class="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition hidden shadow-sm shadow-teal-200">Print Selected</button>
                         <button onclick="clearFilters('sales')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
                     </div>
@@ -280,6 +282,26 @@
                     <span class="text-slate-500 font-medium">Filtered Sales Total:</span>
                     <span class="text-lg font-bold text-emerald-600">₹ <span id="salesTotal">0</span></span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="invoices" class="tab-content space-y-6">
+        <div class="glass-card p-6 rounded-2xl">
+            <h2 class="text-lg font-bold text-slate-800 mb-4">Generated Invoices</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm" id="invoicesRecordsTable">
+                    <thead>
+                        <tr class="text-slate-500 border-b">
+                            <th class="pb-2 font-semibold">Invoice Number</th>
+                            <th class="pb-2 font-semibold">Customer</th>
+                            <th class="pb-2 font-semibold">Date</th>
+                            <th class="pb-2 font-semibold text-center">Status</th>
+                            <th class="pb-2 font-semibold text-right">Total Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoiceTableBody" class="divide-y"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -352,6 +374,35 @@
     </div>
 </div>
 
+<div id="invoiceItemsModal" class="modal">
+    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-3xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b flex justify-between items-center">
+            <div>
+                <h2 id="invoiceItemsTitle" class="text-xl font-bold text-slate-800">Invoice Items</h2>
+                <p id="invoiceItemsCustomer" class="text-sm text-slate-500"></p>
+            </div>
+            <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div class="p-6 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead>
+                    <tr class="text-slate-500 border-b">
+                        <th class="pb-2">Product</th>
+                        <th class="pb-2 text-center">Status</th>
+                        <th class="pb-2 text-right">Price</th>
+                        <th class="pb-2 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="invoiceItemsBody" class="divide-y"></tbody>
+            </table>
+        </div>
+        <div class="p-6 bg-slate-50 flex justify-between items-center">
+            <button id="printGroupInvoiceBtn" onclick="printGroupInvoice()" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-700 transition">Print Full Invoice</button>
+            <button onclick="closeInvoiceModal()" class="px-4 py-2 bg-slate-200 rounded-lg text-slate-700 font-medium">Close</button>
+        </div>
+    </div>
+</div>
+
 <datalist id="oilList"></datalist>
 <datalist id="nameList"></datalist>
 <datalist id="designerList"></datalist>
@@ -366,6 +417,7 @@
     let stockCache = [];
     let salesCache = [];
     let editType = "", editId = "";
+    let currentInvoiceGroup = null;
     let salesChart = null, breakChart = null;
     let topProductsChart = null, channelChart = null;
 
@@ -509,7 +561,10 @@
         const custFilter = document.getElementById('filter-sales-customer').value.toLowerCase();
         const statusFilter = document.getElementById('filter-sales-status').value;
 
+        // ONLY Show UNGROUPED Sales here
         let filtered = salesCache.filter(s => {
+            if(s.invoiceNumber) return false; // Filter out grouped items
+
             const matchesSearch = (s.productName || "").toLowerCase().includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
             let matchesStatus = true;
             if(statusFilter === 'undelivered') matchesStatus = s.isDelivered === false;
@@ -523,13 +578,95 @@
             return (valA - valB) * salesSort.dir;
         });
 
-        salesTable.innerHTML = filtered.map(s => `
-            <tr class="sales-row" onclick='openModal("sales",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+        salesTable.innerHTML = filtered.map(item => `
+            <tr class="sales-row" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
                 <td class="py-3 pl-2" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${s._id}" onchange="togglePrintButton()">
+                    <input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">
                 </td>
+                <td class="py-3 font-medium">${item.productName||""}</td>
+                <td class="py-3 text-slate-500">${item.customerName||""}</td>
+                <td class="py-3 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                        <span class="w-2 h-2 rounded-full ${item.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
+                        <span class="w-2 h-2 rounded-full ${item.isPaid ? 'bg-emerald-500' : 'bg-red-500'}"></span>
+                    </div>
+                </td>
+                <td class="py-3 text-right font-bold text-slate-800">₹${item.soldPrice?.toFixed(2)||0}</td>
+            </tr>
+        `).join("");
+
+        salesTotal.innerText = filtered.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
+        togglePrintButton(); 
+        
+        renderInvoicesTable(); // Render the invoices tab as well
+    }
+
+    function renderInvoicesTable() {
+        let invoiceMap = {};
+
+        salesCache.forEach(s => {
+            if (s.invoiceNumber) {
+                if(!invoiceMap[s.invoiceNumber]) {
+                    invoiceMap[s.invoiceNumber] = {
+                        invoiceNumber: s.invoiceNumber,
+                        customerName: s.customerName,
+                        soldPrice: 0,
+                        items: [],
+                        isPaid: true,
+                        isDelivered: true,
+                        saleDate: s.saleDate
+                    };
+                }
+                invoiceMap[s.invoiceNumber].items.push(s);
+                invoiceMap[s.invoiceNumber].soldPrice += (s.soldPrice || 0);
+                if (!s.isPaid) invoiceMap[s.invoiceNumber].isPaid = false;
+                if (!s.isDelivered) invoiceMap[s.invoiceNumber].isDelivered = false;
+            }
+        });
+
+        const displayList = Object.values(invoiceMap).sort((a,b) => new Date(b.saleDate) - new Date(a.saleDate));
+
+        document.getElementById('invoiceTableBody').innerHTML = displayList.map(item => `
+            <tr onclick='openInvoiceModal("${item.invoiceNumber}")'>
+                <td class="py-3 font-bold text-indigo-600">${item.invoiceNumber}</td>
+                <td class="py-3 text-slate-600">${item.customerName||"Cash Customer"}</td>
+                <td class="py-3 text-slate-500 text-sm">${new Date(item.saleDate).toLocaleDateString()}</td>
+                <td class="py-3 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                        <span class="w-2 h-2 rounded-full ${item.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
+                        <span class="w-2 h-2 rounded-full ${item.isPaid ? 'bg-emerald-500' : 'bg-red-500'}"></span>
+                    </div>
+                </td>
+                <td class="py-3 text-right font-bold text-slate-800">₹${item.soldPrice?.toFixed(2)||0}</td>
+            </tr>
+        `).join("");
+    }
+
+    function togglePrintButton() {
+        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
+        const printBtn = document.getElementById('printSelectedBtn');
+        const mergeBtn = document.getElementById('mergeInvoicesBtn');
+        if(checkedBoxes.length > 0) {
+            printBtn.classList.remove('hidden');
+            mergeBtn.classList.remove('hidden');
+        } else {
+            printBtn.classList.add('hidden');
+            mergeBtn.classList.add('hidden');
+        }
+    }
+
+    // --- Invoice Modal Handlers ---
+    function openInvoiceModal(invoiceNumber) {
+        currentInvoiceGroup = invoiceNumber;
+        const items = salesCache.filter(s => s.invoiceNumber === invoiceNumber);
+        const customer = items.length > 0 ? items[0].customerName : "";
+
+        document.getElementById('invoiceItemsTitle').innerText = `Invoice: ${invoiceNumber}`;
+        document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${customer || 'N/A'}`;
+        
+        document.getElementById('invoiceItemsBody').innerHTML = items.map(s => `
+            <tr>
                 <td class="py-3 font-medium">${s.productName||""}</td>
-                <td class="py-3 text-slate-500">${s.customerName||""}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
                         <span class="w-2 h-2 rounded-full ${s.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
@@ -537,21 +674,49 @@
                     </div>
                 </td>
                 <td class="py-3 text-right font-bold text-slate-800">₹${s.soldPrice?.toFixed(2)||0}</td>
-            </tr>`).join("");
-        salesTotal.innerText = filtered.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
-        togglePrintButton(); // Re-check button visibility on render
+                <td class="py-3 text-center">
+                    <button onclick='editInvoiceItem(${JSON.stringify(s).replace(/"/g,"&quot;")})' class="text-xs font-semibold bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-200 transition">Edit Details</button>
+                </td>
+            </tr>
+        `).join("");
+        document.getElementById('invoiceItemsModal').style.display = "flex";
     }
 
-    function togglePrintButton() {
+    function closeInvoiceModal() { 
+        document.getElementById('invoiceItemsModal').style.display = "none"; 
+        currentInvoiceGroup = null;
+    }
+    
+    function editInvoiceItem(item) {
+        closeInvoiceModal();
+        openModal("sales", item);
+    }
+
+    // --- Merge API Request ---
+    async function mergeSelectedSales() {
         const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
-        const printBtn = document.getElementById('printSelectedBtn');
-        if(checkedBoxes.length > 0) {
-            printBtn.classList.remove('hidden');
-        } else {
-            printBtn.classList.add('hidden');
+        if(checkedBoxes.length === 0) return;
+
+        let saleIdsToMerge = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (!confirm("Group these selected items into a single Invoice?")) return;
+
+        const res = await fetch("/api/sales/merge", {
+            method: "POST", headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ids: saleIdsToMerge })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            alert(`Successfully merged! Created Invoice: ${data.invoiceNumber}`);
+            document.querySelectorAll('.sale-checkbox').forEach(cb => cb.checked = false);
+            togglePrintButton();
+            loadAll();
+            showTab('invoices'); // Switch to invoices tab automatically
         }
     }
 
+    // --- Standard Modal Functions ---
     function openModal(type, data){
         editType = type; editId = data._id;
         modal.style.display = "flex";
@@ -566,6 +731,7 @@
         } else {
             printBtn.classList.remove("hidden");
             modalBody.innerHTML = `
+                ${data.invoiceNumber ? `<div class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-xs font-bold text-indigo-600 mb-2">Part of Invoice: ${data.invoiceNumber}</div>` : ''}
                 <div class="grid grid-cols-3 gap-2">
                     <input id="e_mfg" placeholder="Total Mfg Cost" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
                     <input id="e_sold" placeholder="Total Sold Price" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
@@ -910,7 +1076,7 @@
         });
     }
 
-    // --- PDF INVOICE GENERATOR (SINGLE & MULTIPLE) ---
+    // --- PDF INVOICE GENERATOR (SINGLE, MULTIPLE & GROUP) ---
     function printInvoice() {
         const doc = new window.jspdf.jsPDF();
         const sale = salesCache.find(s => s._id === editId);
@@ -927,27 +1093,47 @@
         };
     }
 
-    function printSelectedInvoices() {
-        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
-        if(checkedBoxes.length === 0) return;
-
-        const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
-        const selectedSales = salesCache.filter(s => selectedIds.includes(s._id));
+    function printGroupInvoice() {
+        if(!currentInvoiceGroup) return;
+        const items = salesCache.filter(s => s.invoiceNumber === currentInvoiceGroup);
+        if(items.length === 0) return;
 
         const doc = new window.jspdf.jsPDF();
-        
         const img = new Image();
         img.src = '/logo.png';
         img.onload = function() {
             doc.addImage(img, 'PNG', 14, 10, 30, 30);
-            generatePDFText(doc, selectedSales, true);
+            generatePDFText(doc, items, true, currentInvoiceGroup);
         };
         img.onerror = function() {
-            generatePDFText(doc, selectedSales, true);
+            generatePDFText(doc, items, true, currentInvoiceGroup);
         };
     }
 
-    function generatePDFText(doc, sales, isBulk = false) {
+    function printSelectedInvoices() {
+        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
+        if(checkedBoxes.length === 0) return;
+
+        let selectedSales = [];
+
+        checkedBoxes.forEach(cb => {
+            const sale = salesCache.find(s => s._id === cb.value);
+            if (sale) selectedSales.push(sale);
+        });
+
+        const doc = new window.jspdf.jsPDF();
+        const img = new Image();
+        img.src = '/logo.png';
+        img.onload = function() {
+            doc.addImage(img, 'PNG', 14, 10, 30, 30);
+            generatePDFText(doc, selectedSales, true, "Bulk");
+        };
+        img.onerror = function() {
+            generatePDFText(doc, selectedSales, true, "Bulk");
+        };
+    }
+
+    function generatePDFText(doc, sales, isBulk = false, groupInvNum = null) {
         doc.setFontSize(22);
         doc.setTextColor(79, 70, 229); 
         doc.text("Eternal Essence", 50, 20);
@@ -958,9 +1144,12 @@
         
         doc.setFontSize(16);
         doc.setTextColor(40);
-        doc.text("INVOICE", 14, 50);
 
         const firstSale = sales[0];
+        const displayInvNum = isBulk ? (groupInvNum || 'Bulk') : (firstSale.invoiceNumber || 'Singular');
+
+        doc.text(`INVOICE: ${displayInvNum}`, 14, 50);
+
         doc.setFontSize(10);
         doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 14, 58);
         doc.text(`Customer: ${firstSale.customerName || 'Cash Customer'}`, 14, 64);
@@ -1003,10 +1192,10 @@
         doc.setFont("helvetica", "bold");
         doc.text(`Grand Total: Rs ${grandTotal.toFixed(2)}`, 140, finalY + (totalDiscount > 0 ? 18 : 10));
 
-        const fileName = isBulk ? `Invoice_Bulk_${Date.now()}.pdf` : `Invoice_${firstSale.customerName || 'Customer'}_${firstSale._id}.pdf`;
+        const fileName = isBulk ? `Invoice_${displayInvNum}.pdf` : `Invoice_${firstSale.customerName || 'Customer'}_${firstSale._id}.pdf`;
         doc.save(fileName);
 
-        if(isBulk) {
+        if(isBulk && groupInvNum === "Bulk") {
             document.querySelectorAll('.sale-checkbox').forEach(cb => cb.checked = false);
             togglePrintButton();
         }

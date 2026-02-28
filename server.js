@@ -28,9 +28,7 @@ mongoose.connect(process.env.MONGO_URI)
 /* ================= AUTH ROUTES ================= */
 
 app.post("/api/login", (req,res)=>{
-
  const { username, password } = req.body;
-
  if(
   username === process.env.ADMIN_USER &&
   password === process.env.ADMIN_PASS
@@ -38,7 +36,6 @@ app.post("/api/login", (req,res)=>{
   req.session.authenticated = true;
   return res.json({success:true});
  }
-
  res.json({success:false, message:"Invalid credentials"});
 });
 
@@ -77,9 +74,7 @@ app.use(express.static("public"));
 /* ================= STOCK ================= */
 
 app.post("/api/stock", requireAuth, async(req,res)=>{
-
  let s=req.body;
-
  if(!s.name || s.name.trim()==="")
   return res.json({success:false,message:"Name required"});
 
@@ -88,7 +83,6 @@ app.post("/api/stock", requireAuth, async(req,res)=>{
    s.units>0 ? s.cost/s.units : 0;
 
  const data=await Stock.create(s);
-
  res.json({success:true,message:"Stock Added",data});
 });
 
@@ -97,9 +91,7 @@ app.get("/api/stock", requireAuth, async(req,res)=>{
 });
 
 app.put("/api/stock/:id", requireAuth, async(req,res)=>{
-
  let s=req.body;
-
  s.pricePerUnit =
    s.size_ml>0 ? s.cost/s.size_ml :
    s.units>0 ? s.cost/s.units : 0;
@@ -107,7 +99,6 @@ app.put("/api/stock/:id", requireAuth, async(req,res)=>{
  const data=await Stock.findByIdAndUpdate(
   req.params.id,s,{new:true}
  );
-
  res.json({success:true,data});
 });
 
@@ -119,18 +110,14 @@ app.delete("/api/stock/:id", requireAuth, async(req,res)=>{
 /* ================= SALES ================= */
 
 app.post("/api/sales", requireAuth, async(req,res)=>{
-
  let s=req.body;
-
  s.profit=s.soldPrice-s.manufacturingCost;
-
  s.profitPercent =
   s.manufacturingCost>0
   ? (s.profit/s.manufacturingCost)*100
   : 0;
 
  const data=await Sale.create(s);
-
  res.json({success:true,data});
 });
 
@@ -139,11 +126,8 @@ app.get("/api/sales", requireAuth, async(req,res)=>{
 });
 
 app.put("/api/sales/:id", requireAuth, async(req,res)=>{
-
  let s=req.body;
-
  s.profit=s.soldPrice-s.manufacturingCost;
-
  s.profitPercent =
   s.manufacturingCost>0
   ? (s.profit/s.manufacturingCost)*100
@@ -152,7 +136,6 @@ app.put("/api/sales/:id", requireAuth, async(req,res)=>{
  const data=await Sale.findByIdAndUpdate(
    req.params.id,s,{new:true}
  );
-
  res.json({success:true,data});
 });
 
@@ -161,21 +144,30 @@ app.delete("/api/sales/:id", requireAuth, async(req,res)=>{
  res.json({success:true});
 });
 
+// NEW: Merge Sales into an Invoice
+app.post("/api/sales/merge", requireAuth, async(req,res)=>{
+  const { ids } = req.body;
+  if (!ids || !ids.length) return res.json({success:false});
+  
+  // Auto Generate Professional Invoice Number (e.g., INV-YYYYMMDD-XXXX)
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0,10).replace(/-/g,"");
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  const invoiceNumber = `INV-${dateStr}-${rand}`;
+
+  await Sale.updateMany({ _id: { $in: ids } }, { $set: { invoiceNumber } });
+  res.json({ success: true, invoiceNumber });
+});
+
 /* ================= DASHBOARD ================= */
 
 app.get("/api/dashboard", requireAuth, async(req,res)=>{
-
  const stock=await Stock.find();
  const sales=await Sale.find();
 
- const totalInvestment =
-  stock.reduce((a,b)=>a+(b.cost||0),0);
-
- const totalSales =
-  sales.reduce((a,b)=>a+(b.soldPrice||0),0);
-
- const totalProfit =
-  sales.reduce((a,b)=>a+(b.profit||0),0);
+ const totalInvestment = stock.reduce((a,b)=>a+(b.cost||0),0);
+ const totalSales = sales.reduce((a,b)=>a+(b.soldPrice||0),0);
+ const totalProfit = sales.reduce((a,b)=>a+(b.profit||0),0);
 
  res.json({
   totalInvestment,
