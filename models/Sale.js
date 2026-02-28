@@ -12,12 +12,21 @@ const SaleSchema = new mongoose.Schema({
   soldPrice: Number,
   profit: Number,
   profitPercent: Number,
-  // --- New Fields ---
-  discount: { type: Number, default: 0 },
-  invoiceNumber: { type: String, default: null }, // Used to merge multiple items into one invoice
+  
+  // --- Item Level vs Invoice Level ---
+  discount: { type: Number, default: 0 }, // Proportional discount for this specific item
+  invoiceNumber: { type: String, default: null },
+  invoiceDiscount: { type: Number, default: 0 }, // Total discount on the parent invoice
+  
+  // --- Tax & Customer Info ---
+  cgstPercent: { type: Number, default: 0 },
+  sgstPercent: { type: Number, default: 0 },
+  igstPercent: { type: Number, default: 0 },
+  customerAddress: { type: String, default: "" },
+  customerPhone: { type: String, default: "" },
+  
   isDelivered: { type: Boolean, default: false },
   isPaid: { type: Boolean, default: false },
-  // ------------------
   saleDate: { type: Date, default: Date.now }
 });
 

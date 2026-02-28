@@ -71,12 +71,17 @@
             <p id="investment" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
         </div>
         <div class="glass-card p-4 rounded-2xl border-l-4 border-emerald-500">
-            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sales</p>
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net Sales</p>
             <p id="sales" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
         </div>
-        <div class="glass-card p-4 rounded-2xl border-l-4 border-indigo-500">
-            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Profit</p>
-            <p id="profit" class="text-lg font-bold text-emerald-600 mt-1">₹0</p>
+        <div class="glass-card p-4 rounded-2xl border-l-4 border-indigo-500 relative">
+            <div class="flex justify-between items-start">
+                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net Profit</p>
+                <label class="flex items-center gap-1 cursor-pointer text-[10px] font-medium text-slate-400 hover:text-indigo-600 transition">
+                    <input type="checkbox" id="showMainProfit" class="w-3 h-3 rounded" onchange="updateDashboardView()"> Show
+                </label>
+            </div>
+            <p id="profit" class="text-lg font-bold text-emerald-600 mt-1">₹***</p>
         </div>
         <div class="glass-card p-4 rounded-2xl border-l-4 border-rose-500" id="net-pl-card">
             <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net P/L</p>
@@ -102,7 +107,7 @@
 
     <div class="flex gap-6 border-b mb-6 overflow-x-auto">
         <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Inventory Stock</button>
-        <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales & Billing</button>
+        <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales History</button>
         <button onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
         <button onclick="showTab('analytics')" id="tab-analytics" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Business Analytics</button>
     </div>
@@ -216,10 +221,7 @@
                         <input id="mfg" type="number" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none" value="0.00">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
-                        <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹">
-                        <input id="saleDiscount" class="w-full p-2.5 border border-orange-200 rounded-xl bg-orange-50 input-focus font-bold" type="number" placeholder="Discount ₹" value="0">
-                    </div>
+                    <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹ (Gross)">
                     
                     <div class="flex gap-4 p-2 bg-slate-50 rounded-xl border">
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -247,7 +249,6 @@
                     <h2 class="text-lg font-bold text-slate-800">Ungrouped Sales</h2>
                     <div class="flex gap-3 items-center">
                         <button onclick="mergeSelectedSales()" id="mergeInvoicesBtn" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition hidden shadow-sm shadow-indigo-200">Merge to Invoice</button>
-                        <button onclick="printSelectedInvoices()" id="printSelectedBtn" class="text-xs bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition hidden shadow-sm shadow-teal-200">Print Selected</button>
                         <button onclick="clearFilters('sales')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
                     </div>
                 </div>
@@ -259,7 +260,12 @@
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'productName')">Product ↕</th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'customerName')">Customer ↕</th>
                                 <th class="pb-2 font-semibold text-center">Status</th>
-                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'soldPrice')">Amount ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'soldPrice')">Net Amount ↕</th>
+                                <th class="pb-2 font-semibold text-right text-emerald-600">
+                                    <span class="flex items-center justify-end gap-1">Profit 
+                                        <input type="checkbox" id="showTableProfit" class="w-3 h-3 cursor-pointer" onchange="renderSalesTable()" title="Toggle Profit View">
+                                    </span>
+                                </th>
                             </tr>
                             <tr class="bg-slate-50/50">
                                 <th class="py-2"></th>
@@ -273,13 +279,14 @@
                                     </select>
                                 </th>
                                 <th class="py-2"></th>
+                                <th class="py-2"></th>
                             </tr>
                         </thead>
                         <tbody id="salesTable" class="divide-y"></tbody>
                     </table>
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">Filtered Sales Total:</span>
+                    <span class="text-slate-500 font-medium">Filtered Net Sales Total:</span>
                     <span class="text-lg font-bold text-emerald-600">₹ <span id="salesTotal">0</span></span>
                 </div>
             </div>
@@ -297,7 +304,7 @@
                             <th class="pb-2 font-semibold">Customer</th>
                             <th class="pb-2 font-semibold">Date</th>
                             <th class="pb-2 font-semibold text-center">Status</th>
-                            <th class="pb-2 font-semibold text-right">Total Amount</th>
+                            <th class="pb-2 font-semibold text-right">Grand Total</th>
                         </tr>
                     </thead>
                     <tbody id="invoiceTableBody" class="divide-y"></tbody>
@@ -328,8 +335,8 @@
                         <tr>
                             <th class="p-4 font-semibold">Month</th>
                             <th class="p-4 font-semibold">Investment</th>
-                            <th class="p-4 font-semibold">Sales</th>
-                            <th class="p-4 font-semibold">Profit</th>
+                            <th class="p-4 font-semibold">Net Sales</th>
+                            <th class="p-4 font-semibold">Net Profit</th>
                             <th class="p-4 font-semibold">ROI</th>
                         </tr>
                     </thead>
@@ -367,7 +374,6 @@
         <div id="modalBody" class="p-6 grid gap-4"></div>
         <div class="p-6 bg-slate-50 flex gap-2">
             <button onclick="saveModal()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">Update</button>
-            <button id="printInvoiceBtn" onclick="printInvoice()" class="flex-1 bg-teal-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-teal-700 transition hidden">Print</button>
             <button onclick="deleteModal()" class="flex-1 bg-red-100 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition">Delete</button>
             <button onclick="closeModal()" class="px-3 py-2 text-slate-500 text-sm font-medium">Cancel</button>
         </div>
@@ -375,30 +381,89 @@
 </div>
 
 <div id="invoiceItemsModal" class="modal">
-    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-3xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
-        <div class="p-6 border-b flex justify-between items-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-4xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
+        <div class="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
             <div>
-                <h2 id="invoiceItemsTitle" class="text-xl font-bold text-slate-800">Invoice Items</h2>
-                <p id="invoiceItemsCustomer" class="text-sm text-slate-500"></p>
+                <h2 id="invoiceItemsTitle" class="text-xl font-bold text-slate-800">Invoice Details</h2>
+                <p id="invoiceItemsCustomer" class="text-sm text-slate-500 font-medium"></p>
             </div>
-            <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+            <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
         </div>
+        
+        <div class="p-6 border-b grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-indigo-900 uppercase mb-2 border-b pb-1">Customer Info</h3>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase">Billing Address</label>
+                    <textarea id="inv_address" rows="2" class="w-full p-2 border border-slate-200 rounded-lg mt-1 text-sm bg-slate-50 focus:border-indigo-500 focus:bg-white outline-none placeholder:text-slate-400" placeholder="123 Main St, Mumbai..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase">Contact Number</label>
+                    <input type="text" id="inv_phone" class="w-full p-2 border border-slate-200 rounded-lg mt-1 text-sm bg-slate-50 focus:border-indigo-500 focus:bg-white outline-none" placeholder="+91 XXXXX XXXXX">
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-indigo-900 uppercase mb-2 border-b pb-1">Tax & Discount</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Global Invoice Discount (₹)</label>
+                        <input type="number" id="inv_discount" class="w-full p-2 border border-slate-200 rounded-lg mt-1 text-sm bg-white focus:border-indigo-500 outline-none font-bold text-rose-600" placeholder="0">
+                        <p class="text-[10px] text-slate-400 mt-1">This discount will be proportionally subtracted from item profits.</p>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer bg-slate-50 hover:bg-indigo-50 transition border-slate-200">
+                            <input type="checkbox" id="chk_cgst" onchange="toggleGSTInputs()" class="w-4 h-4 text-indigo-600 rounded">
+                            <span class="text-xs font-bold text-slate-700">CGST</span>
+                        </label>
+                        <input type="number" id="inv_cgst" class="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-indigo-50/50 hidden focus:border-indigo-500 outline-none" value="14" placeholder="%">
+                    </div>
+                    
+                    <div class="flex flex-col gap-1">
+                        <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer bg-slate-50 hover:bg-indigo-50 transition border-slate-200">
+                            <input type="checkbox" id="chk_sgst" onchange="toggleGSTInputs()" class="w-4 h-4 text-indigo-600 rounded">
+                            <span class="text-xs font-bold text-slate-700">SGST</span>
+                        </label>
+                        <input type="number" id="inv_sgst" class="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-indigo-50/50 hidden focus:border-indigo-500 outline-none" value="14" placeholder="%">
+                    </div>
+
+                    <div class="flex flex-col gap-1 col-span-2">
+                        <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer bg-slate-50 hover:bg-indigo-50 transition border-slate-200">
+                            <input type="checkbox" id="chk_igst" onchange="toggleGSTInputs()" class="w-4 h-4 text-indigo-600 rounded">
+                            <span class="text-xs font-bold text-slate-700">IGST (Inter-state)</span>
+                        </label>
+                        <input type="number" id="inv_igst" class="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-indigo-50/50 hidden focus:border-indigo-500 outline-none" value="28" placeholder="%">
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
         <div class="p-6 overflow-x-auto">
             <table class="w-full text-left text-sm">
                 <thead>
                     <tr class="text-slate-500 border-b">
-                        <th class="pb-2">Product</th>
-                        <th class="pb-2 text-center">Status</th>
-                        <th class="pb-2 text-right">Price</th>
-                        <th class="pb-2 text-center">Action</th>
+                        <th class="pb-2 font-semibold">Product</th>
+                        <th class="pb-2 text-center font-semibold">Status</th>
+                        <th class="pb-2 text-right font-semibold">Gross Price</th>
+                        <th class="pb-2 text-center font-semibold">Action</th>
                     </tr>
                 </thead>
                 <tbody id="invoiceItemsBody" class="divide-y"></tbody>
             </table>
         </div>
-        <div class="p-6 bg-slate-50 flex justify-between items-center">
-            <button id="printGroupInvoiceBtn" onclick="printGroupInvoice()" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-700 transition">Print Full Invoice</button>
-            <button onclick="closeInvoiceModal()" class="px-4 py-2 bg-slate-200 rounded-lg text-slate-700 font-medium">Close</button>
+        
+        <div class="p-6 bg-slate-50 flex justify-between items-center rounded-b-2xl">
+            <div class="flex gap-3">
+                <button onclick="saveInvoiceDetails()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition shadow-sm shadow-indigo-200">Save Invoice</button>
+                <button onclick="printGroupInvoice()" class="bg-yellow-500 text-yellow-950 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-600 transition shadow-sm shadow-yellow-200 flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print Professional PDF
+                </button>
+            </div>
+            <button onclick="closeInvoiceModal()" class="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-200 rounded-lg transition">Close</button>
         </div>
     </div>
 </div>
@@ -416,6 +481,7 @@
     // --- Global State ---
     let stockCache = [];
     let salesCache = [];
+    let globalDashData = null; // Store for dashboard toggles
     let editType = "", editId = "";
     let currentInvoiceGroup = null;
     let salesChart = null, breakChart = null;
@@ -560,11 +626,10 @@
         const prodFilter = document.getElementById('filter-sales-product').value.toLowerCase();
         const custFilter = document.getElementById('filter-sales-customer').value.toLowerCase();
         const statusFilter = document.getElementById('filter-sales-status').value;
+        const showProfit = document.getElementById('showTableProfit')?.checked;
 
-        // ONLY Show UNGROUPED Sales here
+        // Display ALL items. If invoiced, disable checkbox.
         let filtered = salesCache.filter(s => {
-            if(s.invoiceNumber) return false; // Filter out grouped items
-
             const matchesSearch = (s.productName || "").toLowerCase().includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
             let matchesStatus = true;
             if(statusFilter === 'undelivered') matchesStatus = s.isDelivered === false;
@@ -578,10 +643,17 @@
             return (valA - valB) * salesSort.dir;
         });
 
-        salesTable.innerHTML = filtered.map(item => `
-            <tr class="sales-row" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
+        salesTable.innerHTML = filtered.map(item => {
+            const displayProfit = showProfit ? `₹${(item.profit||0).toFixed(2)}` : '****';
+            const netPrice = (item.soldPrice || 0) - (item.discount || 0);
+
+            return `
+            <tr class="sales-row ${item.invoiceNumber ? 'bg-slate-50/50' : ''}" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
                 <td class="py-3 pl-2" onclick="event.stopPropagation()">
-                    <input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">
+                    ${item.invoiceNumber 
+                        ? `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">INV</span>` 
+                        : `<input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">`
+                    }
                 </td>
                 <td class="py-3 font-medium">${item.productName||""}</td>
                 <td class="py-3 text-slate-500">${item.customerName||""}</td>
@@ -591,14 +663,16 @@
                         <span class="w-2 h-2 rounded-full ${item.isPaid ? 'bg-emerald-500' : 'bg-red-500'}"></span>
                     </div>
                 </td>
-                <td class="py-3 text-right font-bold text-slate-800">₹${item.soldPrice?.toFixed(2)||0}</td>
+                <td class="py-3 text-right font-bold text-slate-800">₹${netPrice.toFixed(2)}</td>
+                <td class="py-3 text-right font-medium text-emerald-600">${displayProfit}</td>
             </tr>
-        `).join("");
+            `;
+        }).join("");
 
-        salesTotal.innerText = filtered.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
+        salesTotal.innerText = filtered.reduce((a,b)=>a+((b.soldPrice||0)-(b.discount||0)),0).toFixed(2);
         togglePrintButton(); 
         
-        renderInvoicesTable(); // Render the invoices tab as well
+        renderInvoicesTable(); // Keep Invoices Tab synced
     }
 
     function renderInvoicesTable() {
@@ -610,15 +684,19 @@
                     invoiceMap[s.invoiceNumber] = {
                         invoiceNumber: s.invoiceNumber,
                         customerName: s.customerName,
-                        soldPrice: 0,
+                        subTotal: 0,
                         items: [],
                         isPaid: true,
                         isDelivered: true,
-                        saleDate: s.saleDate
+                        saleDate: s.saleDate,
+                        invoiceDiscount: s.invoiceDiscount || 0,
+                        cgstPercent: s.cgstPercent || 0,
+                        sgstPercent: s.sgstPercent || 0,
+                        igstPercent: s.igstPercent || 0
                     };
                 }
                 invoiceMap[s.invoiceNumber].items.push(s);
-                invoiceMap[s.invoiceNumber].soldPrice += (s.soldPrice || 0);
+                invoiceMap[s.invoiceNumber].subTotal += (s.soldPrice || 0);
                 if (!s.isPaid) invoiceMap[s.invoiceNumber].isPaid = false;
                 if (!s.isDelivered) invoiceMap[s.invoiceNumber].isDelivered = false;
             }
@@ -626,10 +704,15 @@
 
         const displayList = Object.values(invoiceMap).sort((a,b) => new Date(b.saleDate) - new Date(a.saleDate));
 
-        document.getElementById('invoiceTableBody').innerHTML = displayList.map(item => `
+        document.getElementById('invoiceTableBody').innerHTML = displayList.map(item => {
+            let taxable = item.subTotal - item.invoiceDiscount;
+            let taxPct = item.cgstPercent + item.sgstPercent + item.igstPercent;
+            let grandTotal = taxable + (taxable * (taxPct / 100));
+
+            return `
             <tr onclick='openInvoiceModal("${item.invoiceNumber}")'>
-                <td class="py-3 font-bold text-indigo-600">${item.invoiceNumber}</td>
-                <td class="py-3 text-slate-600">${item.customerName||"Cash Customer"}</td>
+                <td class="py-3 font-bold text-amber-600">${item.invoiceNumber}</td>
+                <td class="py-3 font-medium text-slate-600">${item.customerName||"Cash Customer"}</td>
                 <td class="py-3 text-slate-500 text-sm">${new Date(item.saleDate).toLocaleDateString()}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
@@ -637,33 +720,63 @@
                         <span class="w-2 h-2 rounded-full ${item.isPaid ? 'bg-emerald-500' : 'bg-red-500'}"></span>
                     </div>
                 </td>
-                <td class="py-3 text-right font-bold text-slate-800">₹${item.soldPrice?.toFixed(2)||0}</td>
+                <td class="py-3 text-right font-bold text-slate-800">₹${grandTotal.toFixed(2)}</td>
             </tr>
-        `).join("");
+            `;
+        }).join("");
     }
 
     function togglePrintButton() {
         const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
-        const printBtn = document.getElementById('printSelectedBtn');
         const mergeBtn = document.getElementById('mergeInvoicesBtn');
         if(checkedBoxes.length > 0) {
-            printBtn.classList.remove('hidden');
             mergeBtn.classList.remove('hidden');
         } else {
-            printBtn.classList.add('hidden');
             mergeBtn.classList.add('hidden');
         }
+    }
+
+    function toggleGSTInputs() {
+        document.getElementById('inv_cgst').style.display = document.getElementById('chk_cgst').checked ? 'block' : 'none';
+        document.getElementById('inv_sgst').style.display = document.getElementById('chk_sgst').checked ? 'block' : 'none';
+        document.getElementById('inv_igst').style.display = document.getElementById('chk_igst').checked ? 'block' : 'none';
+    }
+
+    // --- Dashboard View Update ---
+    function updateDashboardView() {
+        if (!globalDashData) return;
+        const show = document.getElementById('showMainProfit')?.checked;
+        document.getElementById('profit').innerText = show ? "₹" + globalDashData.totalProfit.toLocaleString() : "₹***";
     }
 
     // --- Invoice Modal Handlers ---
     function openInvoiceModal(invoiceNumber) {
         currentInvoiceGroup = invoiceNumber;
         const items = salesCache.filter(s => s.invoiceNumber === invoiceNumber);
-        const customer = items.length > 0 ? items[0].customerName : "";
-
-        document.getElementById('invoiceItemsTitle').innerText = `Invoice: ${invoiceNumber}`;
-        document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${customer || 'N/A'}`;
+        if (items.length === 0) return;
         
+        const first = items[0];
+        document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${invoiceNumber}`;
+        document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.customerName || 'N/A'}`;
+        
+        // Fill Contact Info
+        document.getElementById('inv_address').value = first.customerAddress || "";
+        document.getElementById('inv_phone').value = first.customerPhone || "";
+
+        // Fill GST/Discount logic
+        document.getElementById('inv_discount').value = first.invoiceDiscount || 0;
+        
+        document.getElementById('chk_cgst').checked = (first.cgstPercent > 0);
+        document.getElementById('inv_cgst').value = first.cgstPercent > 0 ? first.cgstPercent : 14;
+        
+        document.getElementById('chk_sgst').checked = (first.sgstPercent > 0);
+        document.getElementById('inv_sgst').value = first.sgstPercent > 0 ? first.sgstPercent : 14;
+        
+        document.getElementById('chk_igst').checked = (first.igstPercent > 0);
+        document.getElementById('inv_igst').value = first.igstPercent > 0 ? first.igstPercent : 28;
+        
+        toggleGSTInputs();
+
         document.getElementById('invoiceItemsBody').innerHTML = items.map(s => `
             <tr>
                 <td class="py-3 font-medium">${s.productName||""}</td>
@@ -675,10 +788,11 @@
                 </td>
                 <td class="py-3 text-right font-bold text-slate-800">₹${s.soldPrice?.toFixed(2)||0}</td>
                 <td class="py-3 text-center">
-                    <button onclick='editInvoiceItem(${JSON.stringify(s).replace(/"/g,"&quot;")})' class="text-xs font-semibold bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-200 transition">Edit Details</button>
+                    <button onclick='editInvoiceItem(${JSON.stringify(s).replace(/"/g,"&quot;")})' class="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded hover:bg-indigo-200 transition">Edit</button>
                 </td>
             </tr>
         `).join("");
+        
         document.getElementById('invoiceItemsModal').style.display = "flex";
     }
 
@@ -690,6 +804,26 @@
     function editInvoiceItem(item) {
         closeInvoiceModal();
         openModal("sales", item);
+    }
+
+    async function saveInvoiceDetails() {
+        if(!currentInvoiceGroup) return;
+
+        const customerAddress = document.getElementById('inv_address').value;
+        const customerPhone = document.getElementById('inv_phone').value;
+        const invoiceDiscount = Number(document.getElementById('inv_discount').value) || 0;
+        
+        const cgstPercent = document.getElementById('chk_cgst').checked ? (Number(document.getElementById('inv_cgst').value) || 0) : 0;
+        const sgstPercent = document.getElementById('chk_sgst').checked ? (Number(document.getElementById('inv_sgst').value) || 0) : 0;
+        const igstPercent = document.getElementById('chk_igst').checked ? (Number(document.getElementById('inv_igst').value) || 0) : 0;
+
+        await fetch(`/api/invoices/${currentInvoiceGroup}`, {
+            method: "PUT", headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone })
+        });
+        
+        alert("Invoice Details Saved Successfully!");
+        loadAll();
     }
 
     // --- Merge API Request ---
@@ -708,11 +842,10 @@
         const data = await res.json();
         
         if(data.success) {
-            alert(`Successfully merged! Created Invoice: ${data.invoiceNumber}`);
             document.querySelectorAll('.sale-checkbox').forEach(cb => cb.checked = false);
             togglePrintButton();
             loadAll();
-            showTab('invoices'); // Switch to invoices tab automatically
+            showTab('invoices'); 
         }
     }
 
@@ -721,22 +854,18 @@
         editType = type; editId = data._id;
         modal.style.display = "flex";
         modalTitle.innerText = type === "stock" ? `Edit Stock: ${data.category}` : "Edit Sale Record";
-        
-        const printBtn = document.getElementById("printInvoiceBtn");
 
         if(type === "stock") {
-            printBtn.classList.add("hidden");
             updateNameList(data.category);
             modalBody.innerHTML = getFieldsHTML(data.category, data);
         } else {
-            printBtn.classList.remove("hidden");
             modalBody.innerHTML = `
-                ${data.invoiceNumber ? `<div class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-xs font-bold text-indigo-600 mb-2">Part of Invoice: ${data.invoiceNumber}</div>` : ''}
-                <div class="grid grid-cols-3 gap-2">
+                ${data.invoiceNumber ? `<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-800 mb-2">Attached to: <span class="font-bold">${data.invoiceNumber}</span>. To edit GST/Discounts, go to the Invoices tab.</div>` : ''}
+                <div class="grid grid-cols-2 gap-2">
                     <input id="e_mfg" placeholder="Total Mfg Cost" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.manufacturingCost||0}">
                     <input id="e_sold" placeholder="Total Sold Price" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.soldPrice||0}">
-                    <input id="e_discount" placeholder="Discount ₹" class="p-2.5 border rounded-xl bg-slate-50" type="number" value="${data.discount||0}">
                 </div>
+                ${data.discount > 0 ? `<div class="p-2.5 border rounded-xl bg-slate-100 border-slate-200 font-bold text-slate-500 text-sm">Discount applied from Invoice: ₹${data.discount.toFixed(2)}</div>` : ''}
                 <div class="grid grid-cols-2 gap-2">
                     <input id="e_productName" placeholder="Product" class="p-2.5 border rounded-xl bg-slate-50" value="${data.productName||""}">
                     <input id="e_units" placeholder="Units Sold" class="p-2.5 border rounded-xl bg-slate-50 font-bold" type="number" value="${data.units||1}">
@@ -780,7 +909,6 @@
                 referenceSource: document.getElementById("e_referenceSource").value,
                 manufacturingCost: Number(document.getElementById("e_mfg").value),
                 soldPrice: Number(document.getElementById("e_sold").value),
-                discount: Number(document.getElementById("e_discount").value || 0),
                 saleDate: document.getElementById("e_saleDate").value,
                 units: Number(document.getElementById("e_units").value),
                 isDelivered: document.getElementById("e_isDelivered").checked,
@@ -936,11 +1064,16 @@
 
     async function addSale(){
         await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-            productName:productName.value, customerName:customer.value, referenceSource:reference.value,
-            manufacturingCost:Number(mfg.value), soldPrice:Number(sold.value), discount:Number(saleDiscount.value || 0), 
-            saleDate:date.value, size_ml:Number(saleSize.value),
-            units: Number(saleUnits.value),
-            isDelivered: saleDelivered.checked, isPaid: salePaid.checked
+            productName:document.getElementById('productName').value, 
+            customerName:document.getElementById('customer').value, 
+            referenceSource:document.getElementById('reference').value,
+            manufacturingCost:Number(document.getElementById('mfg').value), 
+            soldPrice:Number(document.getElementById('sold').value), 
+            saleDate:document.getElementById('date').value, 
+            size_ml:Number(document.getElementById('saleSize').value),
+            units: Number(document.getElementById('saleUnits').value),
+            isDelivered: document.getElementById('saleDelivered').checked, 
+            isPaid: document.getElementById('salePaid').checked
         })});
 
         const msg = document.getElementById("saleMsg");
@@ -955,9 +1088,11 @@
         const salesData = await (await fetch("/api/sales")).json();
         const dash = await (await fetch("/api/dashboard")).json();
 
+        globalDashData = dash; // Store globally for toggle view
+        updateDashboardView(); // Render Main Profit
+
         investment.innerText = "₹" + dash.totalInvestment.toLocaleString();
         document.getElementById("sales").innerText = "₹" + dash.totalSales.toLocaleString();
-        profit.innerText = "₹" + dash.totalProfit.toLocaleString();
         roi.innerText = dash.roi.toFixed(2);
 
         const netPLValue = dash.totalSales - dash.totalInvestment;
@@ -1028,12 +1163,12 @@
             if (!inRange(d)) return;
             const key = d.toLocaleString("default", { month: "short", year: "numeric" });
             if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
-            months[key].sales += Number(s.soldPrice || 0);
+            months[key].sales += Number(s.soldPrice || 0) - Number(s.discount || 0);
             months[key].profit += Number(s.profit || 0);
             const pName = s.productName || "Unknown";
             productStats[pName] = (productStats[pName] || 0) + Number(s.profit || 0);
             const channel = s.referenceSource || "Other";
-            channelStats[channel] = (channelStats[channel] || 0) + Number(s.soldPrice || 0);
+            channelStats[channel] = (channelStats[channel] || 0) + (Number(s.soldPrice || 0) - Number(s.discount || 0));
         });
 
         const labels = Object.keys(months).sort((a, b) => new Date(a) - new Date(b));
@@ -1076,23 +1211,7 @@
         });
     }
 
-    // --- PDF INVOICE GENERATOR (SINGLE, MULTIPLE & GROUP) ---
-    function printInvoice() {
-        const doc = new window.jspdf.jsPDF();
-        const sale = salesCache.find(s => s._id === editId);
-        if(!sale) return;
-
-        const img = new Image();
-        img.src = '/logo.png';
-        img.onload = function() {
-            doc.addImage(img, 'PNG', 14, 10, 30, 30);
-            generatePDFText(doc, [sale]);
-        };
-        img.onerror = function() {
-            generatePDFText(doc, [sale]);
-        };
-    }
-
+    // --- PDF INVOICE GENERATOR (GOLDEN PROFESSIONAL THEME) ---
     function printGroupInvoice() {
         if(!currentInvoiceGroup) return;
         const items = salesCache.filter(s => s.invoiceNumber === currentInvoiceGroup);
@@ -1103,102 +1222,138 @@
         img.src = '/logo.png';
         img.onload = function() {
             doc.addImage(img, 'PNG', 14, 10, 30, 30);
-            generatePDFText(doc, items, true, currentInvoiceGroup);
+            generatePDFText(doc, items, currentInvoiceGroup);
         };
         img.onerror = function() {
-            generatePDFText(doc, items, true, currentInvoiceGroup);
+            generatePDFText(doc, items, currentInvoiceGroup);
         };
     }
 
-    function printSelectedInvoices() {
-        const checkedBoxes = document.querySelectorAll('.sale-checkbox:checked');
-        if(checkedBoxes.length === 0) return;
-
-        let selectedSales = [];
-
-        checkedBoxes.forEach(cb => {
-            const sale = salesCache.find(s => s._id === cb.value);
-            if (sale) selectedSales.push(sale);
-        });
-
-        const doc = new window.jspdf.jsPDF();
-        const img = new Image();
-        img.src = '/logo.png';
-        img.onload = function() {
-            doc.addImage(img, 'PNG', 14, 10, 30, 30);
-            generatePDFText(doc, selectedSales, true, "Bulk");
-        };
-        img.onerror = function() {
-            generatePDFText(doc, selectedSales, true, "Bulk");
-        };
-    }
-
-    function generatePDFText(doc, sales, isBulk = false, groupInvNum = null) {
-        doc.setFontSize(22);
-        doc.setTextColor(79, 70, 229); 
-        doc.text("Eternal Essence", 50, 20);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text("Mumbai 400011", 50, 28);
-        
-        doc.setFontSize(16);
-        doc.setTextColor(40);
-
+    function generatePDFText(doc, sales, invoiceNumber) {
+        const gold = [218, 165, 32];
+        const darkGray = [40, 40, 40];
         const firstSale = sales[0];
-        const displayInvNum = isBulk ? (groupInvNum || 'Bulk') : (firstSale.invoiceNumber || 'Singular');
+        
+        doc.setFontSize(26);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...gold); 
+        doc.text("ETERNAL ESSENCE", 50, 22);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...darkGray);
+        doc.text("Mumbai 400011", 50, 28);
+        doc.text("Phone: +91 7303862657 | Insta: @eternal_essense", 50, 33);
 
-        doc.text(`INVOICE: ${displayInvNum}`, 14, 50);
+        // Header Line
+        doc.setDrawColor(...gold);
+        doc.setLineWidth(0.5);
+        doc.line(14, 40, 196, 40);
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("TAX INVOICE", 14, 52);
 
         doc.setFontSize(10);
-        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 14, 58);
-        doc.text(`Customer: ${firstSale.customerName || 'Cash Customer'}`, 14, 64);
-        if (!isBulk && firstSale.referenceSource) doc.text(`Reference: ${firstSale.referenceSource}`, 14, 70);
+        doc.setFont("helvetica", "normal");
+        
+        doc.text(`Invoice No: ${invoiceNumber}`, 14, 60);
+        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 14, 66);
+        
+        // Billed To Section
+        doc.setFont("helvetica", "bold");
+        doc.text("Billed To:", 120, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(firstSale.customerName || 'Cash Customer', 120, 58);
 
-        let totalDiscount = 0;
-        let grandTotal = 0;
+        let currentYOffset = 64;
 
-        const tableBody = sales.map(sale => {
-            const discount = sale.discount || 0;
+        if (firstSale.customerPhone) {
+            doc.text(`Phone: ${firstSale.customerPhone}`, 120, currentYOffset);
+            currentYOffset += 6;
+        }
+
+        if (firstSale.customerAddress) {
+            const splitAddress = doc.splitTextToSize(`Address: ${firstSale.customerAddress}`, 75);
+            doc.text(splitAddress, 120, currentYOffset);
+            currentYOffset += splitAddress.length * 5;
+        }
+
+        let startTableY = Math.max(75, currentYOffset + 5);
+
+        let subTotal = 0;
+        const tableBody = sales.map((sale, i) => {
             const itemTotal = sale.soldPrice || 0;
-            const subTotal = itemTotal + discount;
-            
-            totalDiscount += discount;
-            grandTotal += itemTotal;
-
+            subTotal += itemTotal;
             return [
+                i + 1,
                 sale.productName || 'Perfume / Attar',
                 sale.units || 1,
-                `Rs ${subTotal.toFixed(2)}`,
-                `Rs ${subTotal.toFixed(2)}`
+                `Rs ${itemTotal.toFixed(2)}`
             ];
         });
 
         doc.autoTable({
-            startY: 80,
-            head: [['Item Description', 'Qty', 'Price', 'Total']],
+            startY: startTableY,
+            head: [['S.No', 'Item Description', 'Qty', 'Gross Total']],
             body: tableBody,
             theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229] }
+            headStyles: { fillColor: gold, textColor: [255, 255, 255], fontStyle: 'bold' },
+            styles: { textColor: darkGray, fontSize: 9 },
+            alternateRowStyles: { fillColor: [252, 250, 245] }
         });
 
-        const finalY = doc.lastAutoTable.finalY || 80;
+        const finalY = doc.lastAutoTable.finalY || startTableY;
         
-        if (totalDiscount > 0) {
-            doc.text(`Total Discount: Rs ${totalDiscount.toFixed(2)}`, 140, finalY + 10);
+        let discount = firstSale.invoiceDiscount || 0;
+        let cgstPct = firstSale.cgstPercent || 0;
+        let sgstPct = firstSale.sgstPercent || 0;
+        let igstPct = firstSale.igstPercent || 0;
+
+        let taxableAmt = subTotal - discount;
+        let cgstAmt = taxableAmt * (cgstPct / 100);
+        let sgstAmt = taxableAmt * (sgstPct / 100);
+        let igstAmt = taxableAmt * (igstPct / 100);
+        let grandTotal = taxableAmt + cgstAmt + sgstAmt + igstAmt;
+
+        let curY = finalY + 12;
+
+        doc.setFontSize(10);
+        doc.text("Subtotal:", 135, curY); doc.text(`Rs ${subTotal.toFixed(2)}`, 170, curY); curY += 6;
+        
+        if (discount > 0) {
+            doc.text("Discount:", 135, curY); doc.text(`- Rs ${discount.toFixed(2)}`, 170, curY); curY += 6;
+            doc.text("Taxable Value:", 135, curY); doc.text(`Rs ${taxableAmt.toFixed(2)}`, 170, curY); curY += 6;
         }
         
+        if (cgstPct > 0) {
+            doc.text(`CGST (${cgstPct}%):`, 135, curY); doc.text(`+ Rs ${cgstAmt.toFixed(2)}`, 170, curY); curY += 6;
+        }
+        if (sgstPct > 0) {
+            doc.text(`SGST (${sgstPct}%):`, 135, curY); doc.text(`+ Rs ${sgstAmt.toFixed(2)}`, 170, curY); curY += 6;
+        }
+        if (igstPct > 0) {
+            doc.text(`IGST (${igstPct}%):`, 135, curY); doc.text(`+ Rs ${igstAmt.toFixed(2)}`, 170, curY); curY += 6;
+        }
+
+        doc.setDrawColor(200);
+        doc.line(135, curY + 2, 196, curY + 2);
+        
+        curY += 10;
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.text(`Grand Total: Rs ${grandTotal.toFixed(2)}`, 140, finalY + (totalDiscount > 0 ? 18 : 10));
+        doc.setTextColor(...gold);
+        doc.text("Grand Total:", 135, curY);
+        doc.setTextColor(...darkGray);
+        doc.text(`Rs ${grandTotal.toFixed(2)}`, 170, curY);
 
-        const fileName = isBulk ? `Invoice_${displayInvNum}.pdf` : `Invoice_${firstSale.customerName || 'Customer'}_${firstSale._id}.pdf`;
-        doc.save(fileName);
+        // Footer Thank You Message
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(150);
+        doc.text("Thank you for being our valuable customer!", doc.internal.pageSize.width / 2, 280, { align: "center" });
 
-        if(isBulk && groupInvNum === "Bulk") {
-            document.querySelectorAll('.sale-checkbox').forEach(cb => cb.checked = false);
-            togglePrintButton();
-        }
+        doc.save(`Invoice_${invoiceNumber}.pdf`);
     }
 
     async function logout(){ await fetch("/api/logout",{method:"POST"}); window.location.href="/login.html"; }

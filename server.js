@@ -111,11 +111,8 @@ app.delete("/api/stock/:id", requireAuth, async(req,res)=>{
 
 app.post("/api/sales", requireAuth, async(req,res)=>{
  let s=req.body;
- s.profit=s.soldPrice-s.manufacturingCost;
- s.profitPercent =
-  s.manufacturingCost>0
-  ? (s.profit/s.manufacturingCost)*100
-  : 0;
+ s.profit = s.soldPrice - (s.discount || 0) - s.manufacturingCost;
+ s.profitPercent = s.manufacturingCost > 0 ? (s.profit / s.manufacturingCost) * 100 : 0;
 
  const data=await Sale.create(s);
  res.json({success:true,data});
@@ -127,11 +124,8 @@ app.get("/api/sales", requireAuth, async(req,res)=>{
 
 app.put("/api/sales/:id", requireAuth, async(req,res)=>{
  let s=req.body;
- s.profit=s.soldPrice-s.manufacturingCost;
- s.profitPercent =
-  s.manufacturingCost>0
-  ? (s.profit/s.manufacturingCost)*100
-  : 0;
+ s.profit = s.soldPrice - (s.discount || 0) - s.manufacturingCost;
+ s.profitPercent = s.manufacturingCost > 0 ? (s.profit / s.manufacturingCost) * 100 : 0;
 
  const data=await Sale.findByIdAndUpdate(
    req.params.id,s,{new:true}
@@ -144,12 +138,13 @@ app.delete("/api/sales/:id", requireAuth, async(req,res)=>{
  res.json({success:true});
 });
 
-// NEW: Merge Sales into an Invoice
+/* ================= INVOICES ================= */
+
+// Merge Sales into an Invoice
 app.post("/api/sales/merge", requireAuth, async(req,res)=>{
   const { ids } = req.body;
   if (!ids || !ids.length) return res.json({success:false});
   
-  // Auto Generate Professional Invoice Number (e.g., INV-YYYYMMDD-XXXX)
   const date = new Date();
   const dateStr = date.toISOString().slice(0,10).replace(/-/g,"");
   const rand = Math.floor(1000 + Math.random() * 9000);
@@ -159,6 +154,34 @@ app.post("/api/sales/merge", requireAuth, async(req,res)=>{
   res.json({ success: true, invoiceNumber });
 });
 
+// Update Invoice Details (GST, Discount & Customer info)
+// Automatically handles proportional discounts for items!
+app.put("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
+  const { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } = req.body;
+  
+  const items = await Sale.find({ invoiceNumber: req.params.invoiceNumber });
+  const subTotal = items.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
+
+  // Distribute the global discount proportionally across all items
+  for (const item of items) {
+      const itemDiscount = subTotal > 0 ? (item.soldPrice / subTotal) * invoiceDiscount : 0;
+      const newProfit = item.soldPrice - itemDiscount - item.manufacturingCost;
+
+      await Sale.findByIdAndUpdate(item._id, {
+          invoiceDiscount,
+          discount: itemDiscount,
+          profit: newProfit,
+          cgstPercent, 
+          sgstPercent, 
+          igstPercent, 
+          customerAddress, 
+          customerPhone
+      });
+  }
+  
+  res.json({ success: true });
+});
+
 /* ================= DASHBOARD ================= */
 
 app.get("/api/dashboard", requireAuth, async(req,res)=>{
@@ -166,14 +189,14 @@ app.get("/api/dashboard", requireAuth, async(req,res)=>{
  const sales=await Sale.find();
 
  const totalInvestment = stock.reduce((a,b)=>a+(b.cost||0),0);
- const totalSales = sales.reduce((a,b)=>a+(b.soldPrice||0),0);
+ const totalSales = sales.reduce((a,b)=>a+((b.soldPrice||0) - (b.discount||0)),0);
  const totalProfit = sales.reduce((a,b)=>a+(b.profit||0),0);
 
  res.json({
   totalInvestment,
   totalSales,
   totalProfit,
-  roi: totalInvestment ? totalSales/totalInvestment : 0
+  roi: totalInvestment ? totalProfit/totalInvestment : 0
  });
 });
 
