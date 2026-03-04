@@ -562,10 +562,24 @@
         updateNameList(c);
     }
 
+    // Auto Fetch logic for Stock
+    function autoFillStock() {
+        const nameVal = document.getElementById('name')?.value;
+        if(!nameVal) return;
+        
+        const match = stockCache.find(s => s.name === nameVal);
+        if(match) {
+            if(document.getElementById('designerName') && match.designerName && !document.getElementById('designerName').value) document.getElementById('designerName').value = match.designerName;
+            if(document.getElementById('supplier') && match.supplier && !document.getElementById('supplier').value) document.getElementById('supplier').value = match.supplier;
+            if(document.getElementById('size') && match.size_ml && !document.getElementById('size').value) document.getElementById('size').value = match.size_ml;
+            if(document.getElementById('cost') && match.cost && !document.getElementById('cost').value) document.getElementById('cost').value = match.cost;
+        }
+    }
+
     function getFieldsHTML(c, data = {}) {
         let html = "";
         if (c !== "Bottle") {
-            html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" value="${data.name || ''}">`;
+            html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" value="${data.name || ''}" onchange="${data._id ? '' : 'autoFillStock()'}">`;
         }
         if(c === "Attar Oil"){
             html += `
@@ -669,7 +683,7 @@
         const statusFilter = document.getElementById('filter-sales-status').value;
         const showProfit = document.getElementById('showTableProfit')?.checked;
 
-        // SHOW ALL ITEMS, DO NOT FILTER OUT INVOICED ONES
+        // SHOW ALL ITEMS, INVOICED ONES GET BADGE INSTEAD OF CHECKBOX
         let filtered = salesCache.filter(s => {
             const matchesSearch = (s.productName || "").toLowerCase().includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
             let matchesStatus = true;
@@ -824,8 +838,20 @@
         document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${currentInvoiceGroup}`;
         document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.customerName || 'N/A'}`;
         
-        document.getElementById('inv_address').value = first.customerAddress || "";
-        document.getElementById('inv_phone').value = first.customerPhone || "";
+        // Address autofill from past invoices if current is blank
+        let prefAddress = first.customerAddress || "";
+        let prefPhone = first.customerPhone || "";
+        
+        if ((!prefAddress || !prefPhone) && first.customerName) {
+            const pastMatch = salesCache.find(s => s.customerName === first.customerName && (s.customerAddress || s.customerPhone));
+            if (pastMatch) {
+                if(!prefAddress) prefAddress = pastMatch.customerAddress || "";
+                if(!prefPhone) prefPhone = pastMatch.customerPhone || "";
+            }
+        }
+        
+        document.getElementById('inv_address').value = prefAddress;
+        document.getElementById('inv_phone').value = prefPhone;
         document.getElementById('inv_discount').value = first.invoiceDiscount || 0;
         
         document.getElementById('chk_cgst').checked = (first.cgstPercent > 0);
@@ -988,7 +1014,7 @@
                 
                 <div class="col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-200 mb-3">
                     <div class="flex justify-between items-center mb-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Mfg Cost (Hide from customer)</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase">Mfg Cost</label>
                         <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-400 hover:text-indigo-600">
                             <input type="checkbox" onchange="document.getElementById('e_mfg').type = this.checked ? 'number' : 'password'" class="w-3 h-3"> Show
                         </label>
@@ -1370,30 +1396,35 @@
 
     function generatePDFText(doc, sales, invoiceNumber, hasLogo) {
         const gold = [212, 175, 55]; 
-        const darkBg = [30, 30, 30]; 
+        const darkBg = [24, 24, 27]; // Dark Slate
         const textDark = [50, 50, 50]; 
-        
         const firstSale = sales[0];
         
         // 1. High-End Dark Header Block
         doc.setFillColor(...darkBg);
-        doc.rect(0, 0, 210, 48, 'F');
+        doc.rect(0, 0, 210, 50, 'F');
         
-        // Golden Company Title
+        // Golden Company Title (Simulating Cinzel with Times Bold)
+        doc.setFont("times", "bold");
         doc.setFontSize(28);
-        doc.setFont("helvetica", "bold");
         doc.setTextColor(...gold); 
         doc.text("ETERNAL ESSENCE", hasLogo ? 46 : 14, 24);
         
+        // Subtitle "FRAGRANCES"
+        doc.setFont("times", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(200, 200, 200);
+        doc.text("F R A G R A N C E S", hasLogo ? 47 : 15, 30, { charSpace: 2 });
+        
         // White Company Contact
-        doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
         doc.setTextColor(255, 255, 255);
-        doc.text("Mumbai, Maharashtra 400011", hasLogo ? 46 : 14, 32);
-        doc.text("Phone: +91 7303862657  |  Insta: @eternal_essense", hasLogo ? 46 : 14, 38);
+        doc.text("Mumbai, Maharashtra 400011", hasLogo ? 46 : 14, 38);
+        doc.text("Phone: +91 7303862657  |  Insta: @eternal_essense", hasLogo ? 46 : 14, 43);
 
         // TAX INVOICE Tag on Right
-        doc.setFontSize(22);
+        doc.setFontSize(24);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255);
         doc.text("INVOICE", 196, 26, { align: "right" });
@@ -1401,25 +1432,25 @@
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(...gold);
-        doc.text(`No: ${invoiceNumber}`, 196, 33, { align: "right" });
-        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 196, 39, { align: "right" });
+        doc.text(`No: ${invoiceNumber}`, 196, 34, { align: "right" });
+        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, 196, 40, { align: "right" });
 
         // 2. Billed To Section (Light Gray Box)
         doc.setFillColor(248, 250, 252);
-        doc.rect(14, 55, 100, 30, 'F');
+        doc.rect(14, 57, 100, 30, 'F');
         doc.setDrawColor(226, 232, 240);
-        doc.rect(14, 55, 100, 30, 'S');
+        doc.rect(14, 57, 100, 30, 'S');
 
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...textDark);
-        doc.text("BILLED TO:", 18, 62);
+        doc.text("BILLED TO:", 18, 64);
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(firstSale.customerName || 'Cash Customer', 18, 68);
+        doc.text(firstSale.customerName || 'Cash Customer', 18, 70);
         
-        let currentYOffset = 73;
+        let currentYOffset = 75;
         if (firstSale.customerPhone) {
             doc.text(`Ph: ${firstSale.customerPhone}`, 18, currentYOffset);
             currentYOffset += 5;
@@ -1430,6 +1461,7 @@
         }
 
         // 3. Main Item Table
+        let startTableY = Math.max(95, currentYOffset + 5);
         let subTotal = 0;
         const tableBody = sales.map((sale, i) => {
             const itemTotal = sale.soldPrice || 0;
@@ -1443,7 +1475,7 @@
         });
 
         doc.autoTable({
-            startY: 95,
+            startY: startTableY,
             head: [['#', 'Item Description', 'Qty', 'Gross Total']],
             body: tableBody,
             theme: 'striped',
@@ -1458,7 +1490,7 @@
             margin: { left: 14, right: 14 }
         });
 
-        const finalY = doc.lastAutoTable.finalY || 95;
+        const finalY = doc.lastAutoTable.finalY || startTableY;
         
         // 4. Financial Calculations
         let discount = firstSale.invoiceDiscount || 0;
@@ -1474,40 +1506,53 @@
 
         // 5. Summary Box on Right
         let sumY = finalY + 12;
-        doc.setFontSize(10);
-        doc.setTextColor(...textDark);
 
-        doc.text("Subtotal:", 135, sumY); doc.text(`Rs ${subTotal.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6;
+        let boxHeight = 15; 
+        if (discount > 0) boxHeight += 12;
+        if (cgstPct > 0) boxHeight += 6;
+        if (sgstPct > 0) boxHeight += 6;
+        if (igstPct > 0) boxHeight += 6;
+
+        doc.setFillColor(250, 250, 250);
+        doc.setDrawColor(220, 220, 220);
+        doc.roundedRect(120, sumY - 6, 76, boxHeight + 4, 2, 2, 'FD'); 
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+
+        doc.text("Subtotal:", 125, sumY); doc.text(`Rs ${subTotal.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6;
         
         if (discount > 0) {
-            doc.text("Discount:", 135, sumY); doc.text(`- Rs ${discount.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6;
+            doc.text("Discount:", 125, sumY); doc.text(`- Rs ${discount.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6;
             doc.setFont("helvetica", "bold");
-            doc.text("Taxable Value:", 135, sumY); doc.text(`Rs ${taxableAmt.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6;
+            doc.text("Taxable Value:", 125, sumY); doc.text(`Rs ${taxableAmt.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6;
             doc.setFont("helvetica", "normal");
         }
         
-        if (cgstPct > 0) { doc.text(`CGST (${cgstPct}%):`, 135, sumY); doc.text(`+ Rs ${cgstAmt.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6; }
-        if (sgstPct > 0) { doc.text(`SGST (${sgstPct}%):`, 135, sumY); doc.text(`+ Rs ${sgstAmt.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6; }
-        if (igstPct > 0) { doc.text(`IGST (${igstPct}%):`, 135, sumY); doc.text(`+ Rs ${igstAmt.toFixed(2)}`, 196, sumY, { align: "right" }); sumY += 6; }
+        if (cgstPct > 0) { doc.text(`CGST (${cgstPct}%):`, 125, sumY); doc.text(`+ Rs ${cgstAmt.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6; }
+        if (sgstPct > 0) { doc.text(`SGST (${sgstPct}%):`, 125, sumY); doc.text(`+ Rs ${sgstAmt.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6; }
+        if (igstPct > 0) { doc.text(`IGST (${igstPct}%):`, 125, sumY); doc.text(`+ Rs ${igstAmt.toFixed(2)}`, 190, sumY, { align: "right" }); sumY += 6; }
 
         doc.setDrawColor(...gold);
         doc.setLineWidth(0.5);
-        doc.line(135, sumY + 2, 196, sumY + 2);
+        doc.line(125, sumY, 190, sumY);
         
-        sumY += 10;
+        sumY += 7;
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.text("Grand Total:", 135, sumY);
-        doc.text(`Rs ${Math.round(grandTotal).toFixed(2)}`, 196, sumY, { align: "right" });
+        doc.text("Grand Total:", 125, sumY);
+        doc.text(`Rs ${Math.round(grandTotal).toFixed(2)}`, 190, sumY, { align: "right" });
 
         // 6. Signatory & Footer
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(150);
-        doc.text("Authorized Signatory", 196, sumY + 30, { align: "right" });
-        doc.line(150, sumY + 25, 196, sumY + 25);
+        doc.text("Authorized Signatory", 190, sumY + 30, { align: "right" });
+        doc.line(140, sumY + 25, 196, sumY + 25);
 
-        doc.setFont("helvetica", "italic");
+        doc.setFont("times", "italic");
+        doc.setTextColor(100);
         doc.text("Thank you for being our valuable customer!", 105, 280, { align: "center" });
 
         doc.save(`Invoice_${invoiceNumber}.pdf`);
