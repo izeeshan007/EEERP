@@ -149,18 +149,19 @@ app.post("/api/sales/merge", requireAuth, async(req,res)=>{
   const rand = Math.floor(1000 + Math.random() * 9000);
   const invoiceNumber = `INV-${dateStr}-${rand}`;
 
-  await Sale.updateMany({ _id: { $in: ids } }, { $set: { invoiceNumber } });
+  await Sale.updateMany({ _id: { $in: ids } }, { $set: { invoiceNumber, revisionCount: 0 } });
   res.json({ success: true, invoiceNumber });
 });
 
-// NEW: Add existing sales to an existing invoice
+// Add existing sales to an existing invoice (Increments Revision)
 app.post("/api/sales/add-to-invoice", requireAuth, async(req,res)=>{
     const { ids, invoiceNumber } = req.body;
     if (!ids || !ids.length || !invoiceNumber) return res.json({success:false});
     
-    // Find one existing item to inherit the tax/discount configuration
     const existingItem = await Sale.findOne({ invoiceNumber });
+    const newRevision = existingItem ? (existingItem.revisionCount || 0) + 1 : 1;
     
+    // Add to new items
     await Sale.updateMany({ _id: { $in: ids } }, { 
         $set: { 
             invoiceNumber,
@@ -169,17 +170,19 @@ app.post("/api/sales/add-to-invoice", requireAuth, async(req,res)=>{
             sgstPercent: existingItem ? existingItem.sgstPercent : 0,
             igstPercent: existingItem ? existingItem.igstPercent : 0,
             customerAddress: existingItem ? existingItem.customerAddress : "",
-            customerPhone: existingItem ? existingItem.customerPhone : ""
+            customerPhone: existingItem ? existingItem.customerPhone : "",
+            revisionCount: newRevision
         } 
     });
     
-    // We must recalculate proportional discount immediately after adding items
-    recalculateInvoiceDiscount(invoiceNumber);
+    // Update revision on existing items in that invoice
+    await Sale.updateMany({ invoiceNumber, _id: { $nin: ids } }, { $set: { revisionCount: newRevision } });
     
+    recalculateInvoiceDiscount(invoiceNumber);
     res.json({ success: true });
 });
 
-// NEW: Remove an item from an invoice
+// Remove an item from an invoice (Increments Revision)
 app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
     const { id } = req.body;
     const sale = await Sale.findById(id);
@@ -187,7 +190,6 @@ app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
     
     const invNum = sale.invoiceNumber;
     
-    // Un-link the item and reset its personal discount calculation
     sale.invoiceNumber = null;
     sale.invoiceDiscount = 0;
     sale.discount = 0;
@@ -197,25 +199,61 @@ app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
     sale.igstPercent = 0;
     sale.customerAddress = "";
     sale.customerPhone = "";
+    sale.revisionCount = 0;
     await sale.save();
     
-    // Recalculate proportional discount for the REMAINING items in that invoice
-    if(invNum) recalculateInvoiceDiscount(invNum);
+    if(invNum) {
+        const remaining = await Sale.findOne({ invoiceNumber: invNum });
+        if(remaining) {
+            const newRev = (remaining.revisionCount || 0) + 1;
+            await Sale.updateMany({ invoiceNumber: invNum }, { $set: { revisionCount: newRev } });
+            recalculateInvoiceDiscount(invNum);
+        }
+    }
     
     res.json({ success: true });
 });
 
+// Update Invoice Details (Increments Revision)
 app.put("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
   const { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } = req.body;
   
+  const existing = await Sale.findOne({ invoiceNumber: req.params.invoiceNumber });
+  const newRev = existing ? (existing.revisionCount || 0) + 1 : 1;
+  
   await Sale.updateMany(
       { invoiceNumber: req.params.invoiceNumber },
-      { $set: { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } }
+      { $set: { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone, revisionCount: newRev } }
   );
   
   recalculateInvoiceDiscount(req.params.invoiceNumber);
   res.json({ success: true });
 });
+
+// NEW: Delete Entire Invoice
+app.delete("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
+    const invNum = req.params.invoiceNumber;
+    if(!invNum) return res.json({success:false});
+    
+    // Deleting an invoice doesn't delete the sales, it just ungroups them
+    const items = await Sale.find({ invoiceNumber: invNum });
+    for (const sale of items) {
+        sale.invoiceNumber = null;
+        sale.invoiceDiscount = 0;
+        sale.discount = 0;
+        sale.profit = sale.soldPrice - sale.manufacturingCost;
+        sale.cgstPercent = 0;
+        sale.sgstPercent = 0;
+        sale.igstPercent = 0;
+        sale.customerAddress = "";
+        sale.customerPhone = "";
+        sale.revisionCount = 0;
+        await sale.save();
+    }
+    
+    res.json({ success: true });
+});
+
 
 // Helper to calculate proportional discount spread
 async function recalculateInvoiceDiscount(invoiceNumber) {
@@ -223,7 +261,7 @@ async function recalculateInvoiceDiscount(invoiceNumber) {
     if(items.length === 0) return;
     
     const subTotal = items.reduce((sum, item) => sum + (item.soldPrice || 0), 0);
-    const invoiceDiscount = items[0].invoiceDiscount || 0; // all should have the same
+    const invoiceDiscount = items[0].invoiceDiscount || 0; 
 
     for (const item of items) {
         const itemDiscount = subTotal > 0 ? (item.soldPrice / subTotal) * invoiceDiscount : 0;

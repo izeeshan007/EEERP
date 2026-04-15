@@ -14,9 +14,10 @@ const SaleSchema = new mongoose.Schema({
   profitPercent: Number,
   
   // --- Item Level vs Invoice Level ---
-  discount: { type: Number, default: 0 }, // Proportional discount for this specific item
+  discount: { type: Number, default: 0 }, 
   invoiceNumber: { type: String, default: null },
-  invoiceDiscount: { type: Number, default: 0 }, // Total discount on the parent invoice
+  invoiceDiscount: { type: Number, default: 0 },
+  revisionCount: { type: Number, default: 0 }, // NEW: Tracks how many times an invoice was modified
   
   // --- Tax & Customer Info ---
   cgstPercent: { type: Number, default: 0 },
