@@ -316,10 +316,12 @@
                             <th class="pb-2 font-semibold">Date</th>
                             <th class="pb-2 font-semibold text-center">Status</th>
                             <th class="pb-2 font-semibold text-right">Grand Total</th>
+                            <th class="pb-2 font-semibold text-center">Action</th>
                         </tr>
                         <tr class="bg-slate-50/50">
                             <th class="py-2 pr-2"><input type="text" id="filter-inv-number" class="filter-input" placeholder="Filter Invoice..." oninput="renderInvoicesTable()"></th>
                             <th class="py-2 pr-2"><input type="text" id="filter-inv-customer" class="filter-input" placeholder="Filter Customer..." oninput="renderInvoicesTable()"></th>
+                            <th class="py-2"></th>
                             <th class="py-2"></th>
                             <th class="py-2"></th>
                             <th class="py-2"></th>
@@ -365,16 +367,18 @@
                     <tbody id="monthTable" class="divide-y"></tbody>
                 </table>
             </div>
-            <div class="grid lg:grid-cols-2 gap-8">
-                <div class="p-4 bg-white border rounded-2xl shadow-sm">
+            
+            <div class="grid lg:grid-cols-3 gap-8">
+                <div class="p-4 bg-white border rounded-2xl shadow-sm lg:col-span-2">
                     <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales vs Investment</h3>
                     <canvas id="salesChartCanvas"></canvas>
                 </div>
                 <div class="p-4 bg-white border rounded-2xl shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Break-even Curve</h3>
-                    <canvas id="breakChartCanvas"></canvas>
+                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Inventory Composition</h3>
+                    <canvas id="inventoryPieCanvas"></canvas>
                 </div>
-                <div class="p-4 bg-white border rounded-2xl shadow-sm">
+                
+                <div class="p-4 bg-white border rounded-2xl shadow-sm lg:col-span-2">
                     <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Top 5 Best Sellers (by Profit)</h3>
                     <canvas id="topProductsChartCanvas"></canvas>
                 </div>
@@ -382,12 +386,18 @@
                     <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Sales Channel Distribution</h3>
                     <canvas id="channelChartCanvas"></canvas>
                 </div>
+                
+                <div class="p-4 bg-white border rounded-2xl shadow-sm lg:col-span-3">
+                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Break-even Curve</h3>
+                    <canvas id="breakChartCanvas"></canvas>
+                </div>
             </div>
+            
         </div>
     </div>
 </main>
 
-<div id="modal" class="modal">
+<div id="modal" class="modal" style="z-index: 70;">
     <div class="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
         <div class="p-6 border-b flex justify-between items-center">
             <h2 id="modalTitle" class="text-xl font-bold text-slate-800">Edit Entry</h2>
@@ -530,9 +540,15 @@
     let currentInvoiceGroup = null;
     let salesChart = null, breakChart = null;
     let topProductsChart = null, channelChart = null;
+    let inventoryPieChart = null;
 
     let stockSort = { key: 'id', dir: -1 };
     let salesSort = { key: 'id', dir: -1 };
+
+    // Anti-Sleep mechanism for Render
+    setInterval(() => {
+        fetch('/api/check-auth').catch(() => {});
+    }, 840000); // Pings every 14 minutes
 
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -565,7 +581,14 @@
         updateNameList(c);
     }
 
-    // Auto Fetch logic for Stock based on product name
+    // Format display names with category/size
+    function formatProductName(sale) {
+        let name = sale.productName || "";
+        if (sale.size_ml) name += ` ${sale.size_ml} ml`;
+        if (sale.category) name += ` ${sale.category}`;
+        return name.trim();
+    }
+
     window.autoFillStock = function() {
         const nameVal = document.getElementById('name')?.value;
         if(!nameVal) return;
@@ -586,8 +609,6 @@
         const sizes = type === 'Attar' ? [3, 6, 8, 12, 25] : [8, 20, 30, 50, 100];
         sizeElem.innerHTML = sizes.map(v => `<option value="${v}">${v} ml Bottle</option>`).join('');
         if(sizes.includes(Number(currentVal))) sizeElem.value = currentVal;
-        
-        // Trigger Cost recalculation if this is inside the Sale Modal
         if(sizeElemId === 'saleSize') calculateMfgCost();
     }
 
@@ -713,8 +734,9 @@
         });
 
         salesTable.innerHTML = filtered.map(item => {
-            const displayProfit = showProfit ? `₹${(item.profit||0).toFixed(2)}` : '****';
             const netPrice = (item.soldPrice || 0) - (item.discount || 0);
+            const actualProfit = netPrice - (item.manufacturingCost || 0);
+            const displayProfit = showProfit ? `₹${actualProfit.toFixed(2)}` : '****';
 
             return `
             <tr class="sales-row ${item.invoiceNumber ? 'bg-slate-50/50' : ''}" onclick='openModal("sales",${JSON.stringify(item).replace(/"/g,"&quot;")})'>
@@ -724,7 +746,7 @@
                         : `<input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">`
                     }
                 </td>
-                <td class="py-3 font-medium">${item.productName||""}</td>
+                <td class="py-3 font-medium">${formatProductName(item)}</td>
                 <td class="py-3 text-slate-500">${item.customerName||""}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
@@ -739,7 +761,7 @@
         }).join("");
 
         const currentSalesTotal = filtered.reduce((a,b)=>a+((b.soldPrice||0)-(b.discount||0)),0).toFixed(2);
-        const currentProfitTotal = filtered.reduce((a,b)=>a+(b.profit||0),0).toFixed(2);
+        const currentProfitTotal = filtered.reduce((a,b)=>a+(((b.soldPrice||0)-(b.discount||0))-(b.manufacturingCost||0)),0).toFixed(2);
 
         document.getElementById('salesTotal').innerText = currentSalesTotal;
         document.getElementById('salesProfitTotal').innerText = currentProfitTotal;
@@ -806,6 +828,9 @@
                     </div>
                 </td>
                 <td class="py-3 text-right font-bold text-slate-800">₹${grandTotal.toFixed(2)}</td>
+                <td class="py-3 text-center" onclick="event.stopPropagation()">
+                    <button onclick='deleteInvoiceGroup("${item.invoiceNumber}")' class="text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600 px-2 py-1 rounded hover:bg-rose-200 transition">Delete</button>
+                </td>
             </tr>
             `;
         }).join("");
@@ -881,7 +906,7 @@
 
         document.getElementById('invoiceItemsBody').innerHTML = items.map(s => `
             <tr class="hover:bg-slate-50">
-                <td class="py-3 font-medium px-2">${s.productName||""}</td>
+                <td class="py-3 font-medium px-2">${formatProductName(s)}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
                         <span class="w-2 h-2 rounded-full ${s.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
@@ -919,7 +944,13 @@
         });
         await loadAll(); 
         if (currentInvoiceGroup) refreshInvoiceItemsList(); 
-        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+
+    async function deleteInvoiceGroup(invNum) {
+        if(!confirm(`Are you sure you want to ungroup ${invNum}? The items will not be deleted, just removed from this invoice.`)) return;
+        document.getElementById('loadingIndicator').classList.remove('hidden');
+        await fetch(`/api/invoices/${invNum}`, { method: "DELETE" });
+        await loadAll();
     }
 
     // --- ADD ITEMS TO INVOICE MODAL ---
@@ -944,7 +975,7 @@
                 <td class="py-3 px-4 w-8">
                     <input type="checkbox" id="chk_add_${item._id}" class="add-item-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" value="${item._id}" onclick="event.stopPropagation()">
                 </td>
-                <td class="py-3 font-medium">${item.productName||""}</td>
+                <td class="py-3 font-medium">${formatProductName(item)}</td>
                 <td class="py-3 text-slate-500 text-xs">${item.customerName||"N/A"}</td>
                 <td class="py-3 text-right font-bold text-slate-800 pr-4">₹${item.soldPrice?.toFixed(2)||0}</td>
             </tr>
@@ -971,7 +1002,6 @@
         closeAddItemsModal();
         await loadAll();
         refreshInvoiceItemsList();
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     async function saveInvoiceDetails() {
@@ -994,7 +1024,6 @@
         alert("Invoice Details Saved Successfully!");
         await loadAll();
         refreshInvoiceItemsList();
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     // --- Merge API Request ---
@@ -1019,7 +1048,6 @@
             await loadAll();
             showTab('invoices'); 
         }
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     // --- Standard Modal Functions ---
@@ -1109,7 +1137,6 @@
         });
         closeModal(); 
         await loadAll();
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     function closeModal(){ modal.style.display="none"; }
@@ -1120,7 +1147,6 @@
             await fetch(`/api/${editType}/${editId}`, {method: "DELETE"});
             closeModal(); 
             await loadAll();
-            document.getElementById('loadingIndicator').classList.add('hidden');
         }
     }
 
@@ -1141,7 +1167,7 @@
         items.forEach(i => {
             totalCost += Number(i.cost || 0);
             
-            // Only apply ML multiplication to liquid assets. Bottles and Boxes are solid items.
+            // Apply ML multiplication ONLY to liquid assets. Bottles/Boxes/Pouches are discrete units.
             if (i.category === "Attar Oil" || i.category === "Raw Perfume" || i.category === "Aroma Chemical") {
                 let v = Number(i.size_ml || 0);
                 let u = Number(i.units || 1);
@@ -1219,7 +1245,6 @@
         const type = saleCat.value;
         saleSize.innerHTML = "";
         
-        // This ensures the sizes immediately match Perfume or Attar rules
         if(type === "Attar"){
             [3,6,8,12,25].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
             oilPercent.parentElement.style.display = "none";
@@ -1252,19 +1277,23 @@
         setTimeout(() => msg.innerText = "", 3000);
 
         await loadAll();
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     async function addSale(){
         document.getElementById('loadingIndicator').classList.remove('hidden');
+        
+        const cat = document.getElementById('saleCat').value;
+        const sz = document.getElementById('saleSize').value;
+        
         await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
             productName:document.getElementById('productName').value, 
+            category: cat, 
             customerName:document.getElementById('customer').value, 
             referenceSource:document.getElementById('reference').value,
             manufacturingCost:Number(document.getElementById('mfg').value), 
             soldPrice:Number(document.getElementById('sold').value), 
             saleDate:document.getElementById('date').value, 
-            size_ml:Number(document.getElementById('saleSize').value),
+            size_ml:Number(sz),
             units: Number(document.getElementById('saleUnits').value),
             isDelivered: document.getElementById('saleDelivered').checked, 
             isPaid: document.getElementById('salePaid').checked
@@ -1275,7 +1304,6 @@
         setTimeout(() => msg.innerText = "", 3000);
 
         await loadAll();
-        document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
     async function loadAll() {
@@ -1342,6 +1370,7 @@
         const months = {};
         const productStats = {};
         const channelStats = {};
+        const inventoryStats = {};
         const now = new Date();
         const selectedYear = yearSelect.value;
         const selectedRange = rangeSelect.value;
@@ -1361,10 +1390,15 @@
 
         stock.forEach(s => {
             const d = new Date(s.purchaseDate || s._id.substring(0, 8) * 1000);
+            const cost = Number(s.cost || 0);
+            
+            const cat = s.category || "Misc";
+            inventoryStats[cat] = (inventoryStats[cat] || 0) + cost;
+
             if (!inRange(d)) return;
             const key = d.toLocaleString("default", { month: "short", year: "numeric" });
             if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
-            months[key].investment += Number(s.cost || 0);
+            months[key].investment += cost;
         });
 
         salesData.forEach(s => {
@@ -1372,12 +1406,23 @@
             if (!inRange(d)) return;
             const key = d.toLocaleString("default", { month: "short", year: "numeric" });
             if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
-            months[key].sales += Number(s.soldPrice || 0) - Number(s.discount || 0);
-            months[key].profit += Number(s.profit || 0);
-            const pName = s.productName || "Unknown";
-            productStats[pName] = (productStats[pName] || 0) + Number(s.profit || 0);
+            
+            const netPrice = (Number(s.soldPrice) || 0) - (Number(s.discount) || 0);
+            const actualProfit = netPrice - (Number(s.manufacturingCost) || 0);
+            
+            months[key].sales += netPrice;
+            months[key].profit += actualProfit;
+            
+            // Clean product name to group variations together (e.g. 'Aventus' instead of 'Aventus 50ml')
+            let pName = s.productName || "Unknown";
+            pName = pName.trim();
+            // Optional: Capitalize first letter of each word to normalize case differences
+            pName = pName.replace(/\b\w/g, c => c.toUpperCase());
+            
+            productStats[pName] = (productStats[pName] || 0) + actualProfit;
+            
             const channel = s.referenceSource || "Other";
-            channelStats[channel] = (channelStats[channel] || 0) + (Number(s.soldPrice || 0) - Number(s.discount || 0));
+            channelStats[channel] = (channelStats[channel] || 0) + netPrice;
         });
 
         const labels = Object.keys(months).sort((a, b) => new Date(a) - new Date(b));
@@ -1418,9 +1463,15 @@
             data: { labels: Object.keys(channelStats), datasets: [{ data: Object.values(channelStats), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6'] }] },
             options: { responsive: true, plugins: { legend: { position: "bottom" } } }
         });
+
+        if (inventoryPieChart) inventoryPieChart.destroy();
+        inventoryPieChart = new Chart(document.getElementById('inventoryPieCanvas'), {
+            type: "pie",
+            data: { labels: Object.keys(inventoryStats), datasets: [{ data: Object.values(inventoryStats), backgroundColor: ['#14b8a6', '#f43f5e', '#8b5cf6', '#eab308', '#3b82f6', '#f97316', '#64748b'] }] },
+            options: { responsive: true, plugins: { legend: { position: "right" } } }
+        });
     }
 
-    // --- PREMIUM PDF INVOICE GENERATOR ---
     function printGroupInvoice() {
         if(!currentInvoiceGroup) return;
         const items = salesCache.filter(s => s.invoiceNumber === currentInvoiceGroup);
@@ -1445,8 +1496,8 @@
         const textDark = [50, 50, 50]; 
         const firstSale = sales[0];
         
-        // 1. High-End Dark Header Block
-        doc.setFillColor(...darkBg);
+        // 1. Clean White Header
+        doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, pageWidth, 50, 'F');
         
         // Golden Company Title
@@ -1458,63 +1509,76 @@
         // Subtitle "FRAGRANCES"
         doc.setFont("times", "normal");
         doc.setFontSize(11);
-        doc.setTextColor(200, 200, 200);
+        doc.setTextColor(150, 150, 150);
         doc.text("FRAGRANCES", hasLogo ? 49 : 16, 30, { charSpace: 2 });
         
-        // White Company Contact
+        // Dark Company Contact
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(100, 100, 100);
         doc.text("Mumbai, Maharashtra 400011", hasLogo ? 48 : 15, 38);
         doc.text("Phone: +91 7303862657  |  Insta: @eternal_essense", hasLogo ? 48 : 15, 43);
 
         // TAX INVOICE Tag on Right
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(255, 255, 255);
-        doc.text("INVOICE", pageWidth - 15, 26, { align: "right" });
+        doc.setTextColor(...gold);
+        doc.text("INVOICE", pageWidth - 14, 26, { align: "right" });
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(...gold);
-        doc.text(`No: ${invoiceNumber}`, pageWidth - 15, 34, { align: "right" });
-        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, pageWidth - 15, 40, { align: "right" });
+        doc.setTextColor(...textDark);
+        doc.text(`No: ${invoiceNumber}`, pageWidth - 14, 34, { align: "right" });
+        doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, pageWidth - 14, 40, { align: "right" });
 
-        // 2. Billed To Section (Light Gray Box)
-        doc.setFillColor(248, 250, 252);
-        doc.rect(15, 57, 100, 30, 'F');
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(15, 57, 100, 30, 'S');
+        // Header Line
+        doc.setDrawColor(...gold);
+        doc.setLineWidth(0.5);
+        doc.line(14, 48, pageWidth - 14, 48);
 
+        // 2. Billed To Section
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...textDark);
-        doc.text("BILLED TO:", 19, 64);
+        doc.text("BILLED TO:", 14, 58);
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(firstSale.customerName || 'Cash Customer', 19, 70);
+        doc.text(firstSale.customerName || 'Cash Customer', 14, 64);
         
-        let currentYOffset = 75;
+        let currentYOffset = 69;
         if (firstSale.customerPhone) {
-            doc.text(`Ph: ${firstSale.customerPhone}`, 19, currentYOffset);
+            doc.text(`Ph: ${firstSale.customerPhone}`, 14, currentYOffset);
             currentYOffset += 5;
         }
         if (firstSale.customerAddress) {
             const splitAddress = doc.splitTextToSize(`${firstSale.customerAddress}`, 90);
-            doc.text(splitAddress, 19, currentYOffset);
+            doc.text(splitAddress, 14, currentYOffset);
             currentYOffset += splitAddress.length * 4.5;
         }
 
-        // 3. Main Item Table
-        let startTableY = Math.max(95, currentYOffset + 8);
+        // 3. Main Item Table (With added 'Type' column)
+        let startTableY = Math.max(90, currentYOffset + 8);
         let subTotal = 0;
         const tableBody = sales.map((sale, i) => {
             const itemTotal = sale.soldPrice || 0;
             subTotal += itemTotal;
+            
+            // Smart Fallback for category
+            let prodType = sale.category;
+            if (!prodType) {
+                if ((sale.productName || "").toLowerCase().includes("attar")) prodType = "Attar";
+                else prodType = "Perfume";
+            }
+            
+            // Format Description (Name + ml)
+            let desc = sale.productName || 'Unknown Item';
+            if (sale.size_ml) desc += ` ${sale.size_ml} ml`;
+
             return [
                 i + 1,
-                sale.productName || 'Perfume / Attar',
+                desc,
+                prodType, // Injecting the Type into the table
                 sale.units || 1,
                 `Rs ${itemTotal.toFixed(2)}`
             ];
@@ -1522,18 +1586,18 @@
 
         doc.autoTable({
             startY: startTableY,
-            head: [['#', 'Item Description', 'Qty', 'Gross Total']],
+            head: [['#', 'Item Description', 'Type', 'Qty', 'Gross Total']],
             body: tableBody,
-            theme: 'striped',
-            headStyles: { fillColor: gold, textColor: [255, 255, 255], fontStyle: 'bold' },
+            theme: 'plain',
+            headStyles: { fillColor: [250, 250, 250], textColor: gold, fontStyle: 'bold', lineWidth: 0.1, lineColor: [220, 220, 220] },
             bodyStyles: { textColor: textDark, fontSize: 10 },
-            alternateRowStyles: { fillColor: [252, 250, 245] },
             columnStyles: {
-                0: { cellWidth: 15 },
-                2: { cellWidth: 20, halign: 'center' },
-                3: { halign: 'right' }
+                0: { cellWidth: 10 },
+                2: { cellWidth: 25, halign: 'center' }, // Styling for Type Column
+                3: { cellWidth: 15, halign: 'center' }, // Styling for Qty Column
+                4: { halign: 'right' }
             },
-            margin: { left: 15, right: 15 }
+            margin: { left: 14, right: 14 }
         });
 
         const finalY = doc.lastAutoTable.finalY || startTableY;
@@ -1562,13 +1626,13 @@
         const boxX = pageWidth - 90;
         doc.setFillColor(250, 250, 250);
         doc.setDrawColor(220, 220, 220);
-        doc.roundedRect(boxX, sumY - 6, 75, boxHeight + 4, 2, 2, 'FD'); 
+        doc.roundedRect(boxX, sumY - 6, 76, boxHeight + 4, 2, 2, 'FD'); 
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
 
-        const rightAlignX = pageWidth - 19;
+        const rightAlignX = pageWidth - 14;
         const labelX = boxX + 5;
 
         doc.text("Subtotal:", labelX, sumY); doc.text(`Rs ${subTotal.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6;
@@ -1601,7 +1665,18 @@
         doc.text("Authorized Signatory", rightAlignX, sumY + 30, { align: "right" });
         doc.line(rightAlignX - 40, sumY + 25, rightAlignX, sumY + 25);
 
+        // Dynamic Revision and Last Updated Tracking
+        doc.setFontSize(8);
+        doc.setTextColor(200);
+        const revCount = firstSale.revisionCount || 0;
+        let footerTracking = `Printed: ${new Date().toLocaleString()}`;
+        if (revCount > 0) {
+            footerTracking = `Rev: ${revCount} | Last Updated: ${new Date().toLocaleString()} | ` + footerTracking;
+        }
+        doc.text(footerTracking, 14, 285);
+
         doc.setFont("times", "italic");
+        doc.setFontSize(11);
         doc.setTextColor(100);
         doc.text("Thank you for being our valuable customer!", pageWidth / 2, 285, { align: "center" });
 
