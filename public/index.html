@@ -1793,7 +1793,7 @@
         const boxX = pageWidth - 90;
         doc.setFillColor(250, 250, 250);
         doc.setDrawColor(220, 220, 220);
-        doc.roundedRect(boxX, sumY - 6, 76, boxHeight + 4, 2, 2, 'FD'); 
+        doc.roundedRect(boxX + 3, sumY - 6, 80, boxHeight + 8, 3, 3, 'FD'); 
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -1835,7 +1835,7 @@
         doc.setTextColor(200);
         const revCount = firstSale.revisionCount || 0;
         const lastUpdatedStr = firstSale.updatedAt ? new Date(firstSale.updatedAt).toLocaleDateString() : new Date(firstSale.saleDate).toLocaleDateString();
-        doc.text(`Rev: ${revCount} | Updated: ${lastUpdatedStr} | Printed: ${new Date().toLocaleDateString()}`, 14, 285);
+        doc.text(`Rev: ${revCount} | Updated: ${lastUpdatedStr} | Printed: ${new Date().toLocaleDateString()}`, 14, 290);
 
         doc.setFont("times", "italic");
         doc.setFontSize(11);
