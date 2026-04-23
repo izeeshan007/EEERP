@@ -61,7 +61,7 @@
             <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.2</span></h1>
         </div>
         <div class="flex items-center gap-4">
-            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden animate-pulse">Syncing...</span>
+            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden animate-pulse bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
             <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition">Logout</button>
         </div>
     </div>
@@ -74,7 +74,7 @@
             <p id="investment" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
         </div>
         <div class="glass-card p-4 rounded-2xl border-l-4 border-emerald-500">
-            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net Sales</p>
+            <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Net Sales (Rev)</p>
             <p id="sales" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
         </div>
         <div class="glass-card p-4 rounded-2xl border-l-4 border-indigo-500 relative">
@@ -153,6 +153,7 @@
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'category')">Category ↕</th>
                                 <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'units')">Qty/Size ↕</th>
                                 <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'cost')">Cost ↕</th>
+                                <th class="pb-2 font-semibold text-center sort-header" onclick="setSort('stock', 'status')">Status ↕</th>
                             </tr>
                             <tr class="bg-slate-50/50">
                                 <th class="py-2 pr-2"><input type="text" id="filter-stock-name" class="filter-input" placeholder="Filter name..." oninput="renderStockTable()"></th>
@@ -166,6 +167,14 @@
                                 </th>
                                 <th class="py-2"></th>
                                 <th class="py-2"></th>
+                                <th class="py-2 text-center pl-2">
+                                    <select id="filter-stock-status" class="filter-input" onchange="renderStockTable()">
+                                        <option value="">All Statuses</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Dead Stock">Dead Stock</option>
+                                        <option value="Loss">Loss/Spilled</option>
+                                    </select>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="stockTable" class="divide-y"></tbody>
@@ -194,7 +203,7 @@
                         </select>
                         <select id="saleSize" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calculateMfgCost()"></select>
                     </div>
-                    <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar Oil Name" oninput="calculateMfgCost()">
+                    <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar/Perfume Name" oninput="calculateMfgCost()">
                     
                     <div class="grid grid-cols-3 gap-2">
                         <input id="oilPercent" class="p-2.5 border rounded-xl bg-slate-50 input-focus" type="number" value="45" placeholder="Oil %" oninput="calculateMfgCost()">
@@ -226,10 +235,13 @@
                                 <input type="checkbox" onchange="document.getElementById('mfg').type = this.checked ? 'number' : 'password'" class="w-3 h-3"> Show
                             </label>
                         </div>
-                        <input id="mfg" type="password" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none font-mono" value="0.00" readonly>
+                        <input id="mfg" type="password" step="0.01" class="w-full bg-transparent text-xl font-bold text-indigo-700 outline-none font-mono" value="0.00">
                     </div>
 
-                    <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Selling Price ₹ (Gross)">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="sold" class="w-full p-2.5 border border-emerald-200 rounded-xl bg-emerald-50 input-focus font-bold" type="number" placeholder="Bill Price ₹ (Gross)">
+                        <input id="distributorMargin" class="w-full p-2.5 border border-orange-200 rounded-xl bg-orange-50 input-focus font-bold" type="number" placeholder="Distributor Cut ₹">
+                    </div>
                     
                     <div class="flex gap-4 p-2 bg-slate-50 rounded-xl border">
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -296,7 +308,7 @@
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
                     <span class="text-slate-500 font-medium">Filtered Totals:</span>
                     <div class="flex gap-6">
-                        <span class="text-lg font-bold text-slate-800">Sales: <span class="text-emerald-600">₹ <span id="salesTotal">0</span></span></span>
+                        <span class="text-lg font-bold text-slate-800">Rev: <span class="text-emerald-600">₹ <span id="salesTotal">0</span></span></span>
                         <span id="salesProfitContainer" style="display: none;" class="text-lg font-bold text-slate-800">Profit: <span class="text-indigo-600">₹ <span id="salesProfitTotal">0</span></span></span>
                     </div>
                 </div>
@@ -359,7 +371,7 @@
                         <tr>
                             <th class="p-4 font-semibold">Month</th>
                             <th class="p-4 font-semibold">Investment</th>
-                            <th class="p-4 font-semibold">Net Sales</th>
+                            <th class="p-4 font-semibold">Net Sales (Rev)</th>
                             <th class="p-4 font-semibold">Net Profit</th>
                             <th class="p-4 font-semibold">ROI</th>
                         </tr>
@@ -387,6 +399,11 @@
                     <canvas id="channelChartCanvas"></canvas>
                 </div>
                 
+                <div class="p-4 bg-white border rounded-2xl shadow-sm lg:col-span-2">
+                    <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Top 5 Products (by Total Revenue)</h3>
+                    <canvas id="topRevenueChartCanvas"></canvas>
+                </div>
+
                 <div class="p-4 bg-white border rounded-2xl shadow-sm lg:col-span-3">
                     <h3 class="text-sm font-bold text-slate-500 mb-4 uppercase">Break-even Curve</h3>
                     <canvas id="breakChartCanvas"></canvas>
@@ -403,9 +420,9 @@
             <h2 id="modalTitle" class="text-xl font-bold text-slate-800">Edit Entry</h2>
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
-        <div id="modalBody" class="p-6 grid gap-4"></div>
+        <div id="modalBody" class="p-6"></div>
         <div class="p-6 bg-slate-50 flex gap-2">
-            <button onclick="saveModal()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">Update</button>
+            <button onclick="saveModal()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition shadow-sm">Update</button>
             <button onclick="deleteModal()" class="flex-1 bg-red-100 text-red-600 py-2 rounded-xl text-sm font-semibold hover:bg-red-200 transition">Delete</button>
             <button onclick="closeModal()" class="px-3 py-2 text-slate-500 text-sm font-medium">Cancel</button>
         </div>
@@ -538,14 +555,35 @@
     let globalDashData = null; 
     let editType = "", editId = "";
     let currentInvoiceGroup = null;
-    let salesChart = null, breakChart = null;
-    let topProductsChart = null, channelChart = null;
+    
+    // Chart References
+    let salesChart = null;
+    let breakChart = null;
+    let topProductsChart = null; 
+    let topRevenueChart = null;
+    let channelChart = null;
     let inventoryPieChart = null;
 
     let stockSort = { key: 'id', dir: -1 };
     let salesSort = { key: 'id', dir: -1 };
 
-    // Anti-Sleep mechanism for Render
+    // --- Loading & Sync Functions ---
+    let loadingTimeout;
+    function showLoading() {
+        const ind = document.getElementById('loadingIndicator');
+        ind.innerText = "Syncing...";
+        ind.classList.remove('hidden');
+        loadingTimeout = setTimeout(() => {
+            ind.innerText = "Waking Server (~50s)...";
+        }, 2000);
+    }
+    
+    function hideLoading() {
+        clearTimeout(loadingTimeout);
+        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+
+    // Keep Render server awake
     setInterval(() => {
         fetch('/api/check-auth').catch(() => {});
     }, 840000); // Pings every 14 minutes
@@ -581,12 +619,26 @@
         updateNameList(c);
     }
 
-    // Format display names with category/size
+    // Format Full Product Name (e.g. Aventus 50 ml Perfume)
     function formatProductName(sale) {
-        let name = sale.productName || "";
+        let name = sale.productName || "Unknown Item";
         if (sale.size_ml) name += ` ${sale.size_ml} ml`;
-        if (sale.category) name += ` ${sale.category}`;
+        
+        let type = sale.category || sale.saleCat;
+        if(!type) type = name.toLowerCase().includes('attar') ? 'Attar' : 'Perfume';
+        
+        if (!name.toLowerCase().includes(type.toLowerCase())) {
+             name += ` ${type}`;
+        }
         return name.trim();
+    }
+
+    // Normalizer for Best Sellers Chart (Case Insensitive, base name only)
+    function getNormalizedProductName(name) {
+        if(!name) return "Unknown";
+        let clean = name.toLowerCase().trim();
+        clean = clean.replace(/\b\d+\s*ml\b/g, '').replace(/\b(perfume|attar)\b/g, '').trim();
+        return clean.replace(/\b\w/g, char => char.toUpperCase());
     }
 
     window.autoFillStock = function() {
@@ -657,9 +709,20 @@
             <input id="${data._id ? 'e_' : ''}units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Units" value="${data.units || ''}">
             <input id="${data._id ? 'e_' : ''}cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost" value="${data.cost || ''}">
         </div>
-        <div class="space-y-1 mt-2">
-            <label class="text-[10px] uppercase font-bold text-slate-400">Purchase Date</label>
-            <input id="${data._id ? 'e_' : ''}stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" value="${data.purchaseDate ? data.purchaseDate.split('T')[0] : ''}">
+        
+        <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="space-y-1">
+                <label class="text-[10px] uppercase font-bold text-slate-400">Purchase Date</label>
+                <input id="${data._id ? 'e_' : ''}stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" value="${data.purchaseDate ? data.purchaseDate.split('T')[0] : ''}">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] uppercase font-bold text-slate-400">Status</label>
+                <select id="${data._id ? 'e_' : ''}status" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus font-medium">
+                    <option value="Active" ${data.status==='Active'?'selected':''}>🟢 Active</option>
+                    <option value="Dead Stock" ${data.status==='Dead Stock'?'selected':''}>🟠 Dead Stock</option>
+                    <option value="Loss" ${data.status==='Loss'?'selected':''}>🔴 Loss/Spilled</option>
+                </select>
+            </div>
         </div>`;
         return html;
     }
@@ -685,6 +748,8 @@
         if(table === 'stock') {
             document.getElementById('filter-stock-name').value = '';
             document.getElementById('filter-stock-category').value = '';
+            const statusFilterElem = document.getElementById('filter-stock-status');
+            if(statusFilterElem) statusFilterElem.value = '';
             renderStockTable();
         } else {
             document.getElementById('filter-sales-product').value = '';
@@ -697,19 +762,35 @@
     function renderStockTable() {
         const nameFilter = document.getElementById('filter-stock-name').value.toLowerCase();
         const catFilter = document.getElementById('filter-stock-category').value;
-        let filtered = stockCache.filter(s => (s.name || "").toLowerCase().includes(nameFilter) && (catFilter === "" || s.category === catFilter));
+        const statusElem = document.getElementById('filter-stock-status');
+        const statusFilter = statusElem ? statusElem.value : "";
+
+        let filtered = stockCache.filter(s => {
+            const nameMatch = (s.name || "").toLowerCase().includes(nameFilter);
+            const catMatch = (catFilter === "" || s.category === catFilter);
+            const sStatus = s.status || "Active";
+            const statusMatch = (statusFilter === "" || sStatus === statusFilter);
+            return nameMatch && catMatch && statusMatch;
+        });
+
         filtered.sort((a,b) => {
             let valA = a[stockSort.key], valB = b[stockSort.key];
             if(typeof valA === 'string') return valA.localeCompare(valB) * stockSort.dir;
             return (valA - valB) * stockSort.dir;
         });
-        stockTable.innerHTML = filtered.map(s => `
+
+        stockTable.innerHTML = filtered.map(s => {
+            const isLoss = (s.status === 'Loss' || s.status === 'Dead Stock');
+            return `
             <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
-                <td class="py-3 font-medium">${s.name||""}</td>
+                <td class="py-3 font-medium ${isLoss ? 'text-red-500 line-through' : ''}">${s.name||""}</td>
                 <td class="py-3 text-slate-500">${s.category||""}</td>
                 <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + (s.category === 'Aroma Chemical' ? 'g' : 'ml') : s.units + ' U'}</td>
-                <td class="py-3 text-right font-bold">₹${s.cost||0}</td>
-            </tr>`).join("");
+                <td class="py-3 text-right font-bold ${isLoss ? 'text-red-500' : ''}">₹${s.cost||0}</td>
+                <td class="py-3 text-center text-xs font-bold ${s.status === 'Active' || !s.status ? 'text-emerald-500' : 'text-red-500'}">${s.status || 'Active'}</td>
+            </tr>`
+        }).join("");
+        
         stockTotal.innerText = filtered.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
     }
 
@@ -720,7 +801,8 @@
         const showProfit = document.getElementById('showTableProfit')?.checked;
 
         let filtered = salesCache.filter(s => {
-            const matchesSearch = (s.productName || "").toLowerCase().includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
+            const fullName = formatProductName(s).toLowerCase();
+            const matchesSearch = fullName.includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
             let matchesStatus = true;
             if(statusFilter === 'undelivered') matchesStatus = s.isDelivered === false;
             if(statusFilter === 'unpaid') matchesStatus = s.isPaid === false;
@@ -734,7 +816,7 @@
         });
 
         salesTable.innerHTML = filtered.map(item => {
-            const netPrice = (item.soldPrice || 0) - (item.discount || 0);
+            const netPrice = (item.soldPrice || 0) - (item.discount || 0) - (item.distributorMargin || 0);
             const actualProfit = netPrice - (item.manufacturingCost || 0);
             const displayProfit = showProfit ? `₹${actualProfit.toFixed(2)}` : '****';
 
@@ -760,8 +842,8 @@
             `;
         }).join("");
 
-        const currentSalesTotal = filtered.reduce((a,b)=>a+((b.soldPrice||0)-(b.discount||0)),0).toFixed(2);
-        const currentProfitTotal = filtered.reduce((a,b)=>a+(((b.soldPrice||0)-(b.discount||0))-(b.manufacturingCost||0)),0).toFixed(2);
+        const currentSalesTotal = filtered.reduce((a,b)=>a+((b.soldPrice||0)-(b.discount||0)-(b.distributorMargin||0)),0).toFixed(2);
+        const currentProfitTotal = filtered.reduce((a,b)=>a+(((b.soldPrice||0)-(b.discount||0)-(b.distributorMargin||0))-(b.manufacturingCost||0)),0).toFixed(2);
 
         document.getElementById('salesTotal').innerText = currentSalesTotal;
         document.getElementById('salesProfitTotal').innerText = currentProfitTotal;
@@ -795,7 +877,7 @@
                     };
                 }
                 invoiceMap[s.invoiceNumber].items.push(s);
-                invoiceMap[s.invoiceNumber].subTotal += (s.soldPrice || 0);
+                invoiceMap[s.invoiceNumber].subTotal += (s.soldPrice || 0); // Display to customer ignores dist margin
                 if (!s.isPaid) invoiceMap[s.invoiceNumber].isPaid = false;
                 if (!s.isDelivered) invoiceMap[s.invoiceNumber].isDelivered = false;
             }
@@ -829,7 +911,7 @@
                 </td>
                 <td class="py-3 text-right font-bold text-slate-800">₹${grandTotal.toFixed(2)}</td>
                 <td class="py-3 text-center" onclick="event.stopPropagation()">
-                    <button onclick='deleteInvoiceGroup("${item.invoiceNumber}")' class="text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600 px-2 py-1 rounded hover:bg-rose-200 transition">Delete</button>
+                    <button onclick='deleteInvoiceGroup("${item.invoiceNumber}")' class="text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-600 px-2 py-1 rounded hover:bg-rose-200 transition shadow-sm">Delete</button>
                 </td>
             </tr>
             `;
@@ -937,20 +1019,22 @@
     async function removeItemFromInvoice(itemId) {
         if(!confirm("Remove this item from the invoice?")) return;
         
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         await fetch("/api/sales/remove-from-invoice", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id: itemId })
         });
         await loadAll(); 
         if (currentInvoiceGroup) refreshInvoiceItemsList(); 
+        hideLoading();
     }
 
     async function deleteInvoiceGroup(invNum) {
-        if(!confirm(`Are you sure you want to ungroup ${invNum}? The items will not be deleted, just removed from this invoice.`)) return;
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        if(!confirm(`Are you sure you want to completely ungroup & delete ${invNum}? The individual items will NOT be deleted from Sales History.`)) return;
+        showLoading();
         await fetch(`/api/invoices/${invNum}`, { method: "DELETE" });
         await loadAll();
+        hideLoading();
     }
 
     // --- ADD ITEMS TO INVOICE MODAL ---
@@ -968,7 +1052,7 @@
     function renderAddItemsTable() {
         const filterText = document.getElementById('filter-add-items').value.toLowerCase();
         
-        let ungroupedSales = salesCache.filter(s => !s.invoiceNumber && (s.productName || "").toLowerCase().includes(filterText));
+        let ungroupedSales = salesCache.filter(s => !s.invoiceNumber && formatProductName(s).toLowerCase().includes(filterText));
         
         document.getElementById('addItemsBody').innerHTML = ungroupedSales.map(item => `
             <tr class="hover:bg-slate-100 cursor-pointer" onclick="toggleAddCheckbox('${item._id}')">
@@ -993,7 +1077,7 @@
 
         let idsToAdd = Array.from(checkedBoxes).map(cb => cb.value);
 
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         await fetch("/api/sales/add-to-invoice", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ids: idsToAdd, invoiceNumber: currentInvoiceGroup })
@@ -1002,6 +1086,7 @@
         closeAddItemsModal();
         await loadAll();
         refreshInvoiceItemsList();
+        hideLoading();
     }
 
     async function saveInvoiceDetails() {
@@ -1015,7 +1100,7 @@
         const sgstPercent = document.getElementById('chk_sgst').checked ? (Number(document.getElementById('inv_sgst').value) || 0) : 0;
         const igstPercent = document.getElementById('chk_igst').checked ? (Number(document.getElementById('inv_igst').value) || 0) : 0;
 
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         await fetch(`/api/invoices/${currentInvoiceGroup}`, {
             method: "PUT", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone })
@@ -1024,6 +1109,7 @@
         alert("Invoice Details Saved Successfully!");
         await loadAll();
         refreshInvoiceItemsList();
+        hideLoading();
     }
 
     // --- Merge API Request ---
@@ -1035,7 +1121,7 @@
 
         if (!confirm("Group these selected items into a single Invoice?")) return;
 
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         const res = await fetch("/api/sales/merge", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ids: saleIdsToMerge })
@@ -1048,6 +1134,7 @@
             await loadAll();
             showTab('invoices'); 
         }
+        hideLoading();
     }
 
     // --- Standard Modal Functions ---
@@ -1061,50 +1148,116 @@
             modalBody.innerHTML = getFieldsHTML(data.category, data);
         } else {
             modalBody.innerHTML = `
-                ${data.invoiceNumber ? `<div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-800 mb-3">Attached to: <span class="font-bold">${data.invoiceNumber}</span>. To edit GST/Discounts, go to the Invoices tab.</div>` : ''}
-                
-                <div class="col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-200 mb-3">
-                    <div class="flex justify-between items-center mb-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Mfg Cost (Hide from customer)</label>
-                        <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-400 hover:text-indigo-600">
-                            <input type="checkbox" onchange="document.getElementById('e_mfg').type = this.checked ? 'number' : 'password'" class="w-3 h-3"> Show
-                        </label>
+                <div class="space-y-4">
+                    ${data.invoiceNumber ? `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-800 flex items-center gap-2 shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>Attached to: <span class="font-bold">${data.invoiceNumber}</span>. Edit GST/Discounts in Invoices tab.</span></div>` : ''}
+                    
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Product Information</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Type</label>
+                                <select id="e_saleCat" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors">
+                                    <option value="Perfume" ${data.category==='Perfume'?'selected':''}>Perfume</option>
+                                    <option value="Attar" ${data.category==='Attar'?'selected':''}>Attar</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Size (ml)</label>
+                                <input id="e_size_ml" type="number" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.size_ml||''}">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Product Name</label>
+                                <input id="e_productName" placeholder="Product Name" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.productName||""}">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Qty Sold</label>
+                                <input id="e_units" placeholder="Units" class="w-full p-2 border border-indigo-200 rounded-lg bg-indigo-50 focus:bg-white focus:border-indigo-500 outline-none font-bold text-indigo-700 text-sm transition-colors" type="number" value="${data.units||1}">
+                            </div>
+                        </div>
                     </div>
-                    <input id="e_mfg" placeholder="Total Mfg Cost" class="w-full p-2 border rounded-lg bg-white outline-none font-mono focus:border-indigo-500" type="password" step="0.01" value="${data.manufacturingCost||0}">
-                </div>
 
-                <div class="mb-3">
-                    <input id="e_sold" placeholder="Total Sold Price (Gross)" class="w-full p-2.5 border rounded-xl bg-slate-50 focus:border-indigo-500 outline-none" type="number" value="${data.soldPrice||0}">
-                </div>
-                
-                ${data.discount > 0 ? `<div class="p-2.5 border rounded-xl bg-slate-100 border-slate-200 font-bold text-slate-500 text-sm mb-3">Discount applied from Invoice: ₹${data.discount.toFixed(2)}</div>` : ''}
-                
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <input id="e_productName" placeholder="Product" class="p-2.5 border rounded-xl bg-slate-50" value="${data.productName||""}">
-                    <input id="e_units" placeholder="Units Sold" class="p-2.5 border rounded-xl bg-slate-50 font-bold" type="number" value="${data.units||1}">
-                </div>
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <input id="e_customerName" list="customerList" placeholder="Customer" class="p-2.5 border rounded-xl bg-slate-50" value="${data.customerName||""}">
-                    <input id="e_referenceSource" list="referenceList" placeholder="Reference" class="p-2.5 border rounded-xl bg-slate-50" value="${data.referenceSource||""}">
-                </div>
-                <input id="e_saleDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 mb-3" value="${data.saleDate ? data.saleDate.split('T')[0] : ''}">
-                
-                <div class="flex gap-4 p-3 bg-slate-50 rounded-xl border">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="e_isDelivered" class="w-5 h-5" ${data.isDelivered ? 'checked' : ''}>
-                        <span class="font-bold text-slate-700">Delivered</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="e_isPaid" class="w-5 h-5" ${data.isPaid ? 'checked' : ''}>
-                        <span class="font-bold text-slate-700">Paid</span>
-                    </label>
+                    <div class="bg-indigo-50/30 p-4 rounded-xl border border-indigo-100 shadow-sm transition-all hover:shadow-md">
+                        <h3 class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-3">Composition Pricing</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-indigo-600">Oil %</label>
+                                <input id="e_oilPercent" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.oilPercent||''}">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-indigo-600">Misc Cost</label>
+                                <input id="e_otherCost" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.otherCost||''}">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-indigo-600">Bottle Cost</label>
+                                <input id="e_bottlePrice" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.bottlePrice||''}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Financials</h3>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Mfg Cost (Internal)</label>
+                                <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-400 hover:text-indigo-600">
+                                    <input type="checkbox" onchange="document.getElementById('e_mfg').type = this.checked ? 'number' : 'password'" class="w-3 h-3 rounded"> Show
+                                </label>
+                            </div>
+                            <input id="e_mfg" placeholder="Total Mfg Cost" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white shadow-sm outline-none font-mono focus:border-indigo-500 transition-colors" type="password" step="0.01" value="${data.manufacturingCost||0}">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-2">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-emerald-600">Bill Price (Gross)</label>
+                                <input id="e_sold" class="w-full p-2 border border-emerald-200 rounded-lg bg-emerald-50 focus:bg-white shadow-sm focus:border-emerald-500 outline-none text-sm font-bold text-emerald-700 transition-colors" type="number" value="${data.soldPrice||0}">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-orange-500">Distributor Cut</label>
+                                <input id="e_distributorMargin" class="w-full p-2 border border-orange-200 rounded-lg bg-orange-50 focus:bg-white shadow-sm focus:border-orange-500 outline-none text-sm font-bold text-orange-700 transition-colors" type="number" value="${data.distributorMargin||0}">
+                            </div>
+                        </div>
+                        ${data.discount > 0 ? `<div class="p-2 border rounded-lg bg-slate-50 border-slate-200 font-medium text-slate-500 text-[11px] mt-2 flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span>Discount applied from Invoice: <span class="font-bold text-slate-700">₹${data.discount.toFixed(2)}</span></span></div>` : ''}
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Logistics & Tracking</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Customer</label>
+                                <input id="e_customerName" list="customerList" placeholder="Customer Name" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white shadow-sm focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.customerName||""}">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Channel</label>
+                                <input id="e_referenceSource" list="referenceList" placeholder="Reference Source" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white shadow-sm focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.referenceSource||""}">
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-1 mb-4">
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Sale Date</label>
+                            <input id="e_saleDate" type="date" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white shadow-sm focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.saleDate ? data.saleDate.split('T')[0] : ''}">
+                        </div>
+                        
+                        <div class="flex gap-6 pt-3 border-t border-slate-100">
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="e_isDelivered" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 transition-colors" ${data.isDelivered ? 'checked' : ''}>
+                                <span class="font-bold text-slate-600 text-sm group-hover:text-indigo-600 transition-colors">Delivered</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="e_isPaid" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 transition-colors" ${data.isPaid ? 'checked' : ''}>
+                                <span class="font-bold text-slate-600 text-sm group-hover:text-emerald-600 transition-colors">Paid</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             `;
         }
     }
 
     async function saveModal(){
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         let body = {};
         if(editType === "stock") {
             const cat = stockCache.find(x => x._id === editId).category;
@@ -1117,15 +1270,22 @@
                 size_ml: Number(document.getElementById("e_size")?.value || 0),
                 units: Number(document.getElementById("e_units")?.value || 0),
                 cost: Number(document.getElementById("e_cost")?.value || 0),
+                status: document.getElementById("e_status") ? document.getElementById("e_status").value : "Active",
                 purchaseDate: document.getElementById("e_stockPurchaseDate")?.value
             };
         } else {
             body = {
                 productName: document.getElementById("e_productName").value,
+                category: document.getElementById("e_saleCat").value,
+                size_ml: Number(document.getElementById("e_size_ml").value),
+                oilPercent: Number(document.getElementById("e_oilPercent").value),
+                otherCost: Number(document.getElementById("e_otherCost").value),
+                bottlePrice: Number(document.getElementById("e_bottlePrice").value),
                 customerName: document.getElementById("e_customerName").value,
                 referenceSource: document.getElementById("e_referenceSource").value,
                 manufacturingCost: Number(document.getElementById("e_mfg").value),
                 soldPrice: Number(document.getElementById("e_sold").value),
+                distributorMargin: Number(document.getElementById("e_distributorMargin").value),
                 saleDate: document.getElementById("e_saleDate").value,
                 units: Number(document.getElementById("e_units").value),
                 isDelivered: document.getElementById("e_isDelivered").checked,
@@ -1137,16 +1297,18 @@
         });
         closeModal(); 
         await loadAll();
+        hideLoading();
     }
 
     function closeModal(){ modal.style.display="none"; }
     
     async function deleteModal(){
         if(confirm("Are you sure?")) {
-            document.getElementById('loadingIndicator').classList.remove('hidden');
+            showLoading();
             await fetch(`/api/${editType}/${editId}`, {method: "DELETE"});
             closeModal(); 
             await loadAll();
+            hideLoading();
         }
     }
 
@@ -1167,7 +1329,7 @@
         items.forEach(i => {
             totalCost += Number(i.cost || 0);
             
-            // Apply ML multiplication ONLY to liquid assets. Bottles/Boxes/Pouches are discrete units.
+            // Only apply ML multiplication to liquid assets. Bottles and Boxes are solid items.
             if (i.category === "Attar Oil" || i.category === "Raw Perfume" || i.category === "Aroma Chemical") {
                 let v = Number(i.size_ml || 0);
                 let u = Number(i.units || 1);
@@ -1245,18 +1407,19 @@
         const type = saleCat.value;
         saleSize.innerHTML = "";
         
+        // This ensures the sizes immediately match Perfume or Attar rules
         if(type === "Attar"){
             [3,6,8,12,25].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
-            oilPercent.parentElement.style.display = "none";
+            document.getElementById('oilPercent').style.display = "none";
         } else {
             [8,20,30,50,100].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
-            oilPercent.parentElement.style.display = "grid";
+            document.getElementById('oilPercent').style.display = "inline-block";
         }
         calculateMfgCost();
     }
 
     async function addStock(){
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         const cat = category.value;
         const body = {
             category: cat,
@@ -1277,10 +1440,11 @@
         setTimeout(() => msg.innerText = "", 3000);
 
         await loadAll();
+        hideLoading();
     }
 
     async function addSale(){
-        document.getElementById('loadingIndicator').classList.remove('hidden');
+        showLoading();
         
         const cat = document.getElementById('saleCat').value;
         const sz = document.getElementById('saleSize').value;
@@ -1292,8 +1456,12 @@
             referenceSource:document.getElementById('reference').value,
             manufacturingCost:Number(document.getElementById('mfg').value), 
             soldPrice:Number(document.getElementById('sold').value), 
+            distributorMargin:Number(document.getElementById('distributorMargin').value), 
             saleDate:document.getElementById('date').value, 
             size_ml:Number(sz),
+            oilPercent:Number(document.getElementById('oilPercent').value),
+            otherCost:Number(document.getElementById('otherCost').value),
+            bottlePrice:Number(document.getElementById('bottlePriceInput').value),
             units: Number(document.getElementById('saleUnits').value),
             isDelivered: document.getElementById('saleDelivered').checked, 
             isPaid: document.getElementById('salePaid').checked
@@ -1304,11 +1472,12 @@
         setTimeout(() => msg.innerText = "", 3000);
 
         await loadAll();
+        hideLoading();
     }
 
     async function loadAll() {
         try {
-            document.getElementById('loadingIndicator').classList.remove('hidden');
+            showLoading();
             const [stockRes, salesRes, dashRes] = await Promise.all([
                 fetch("/api/stock"),
                 fetch("/api/sales"),
@@ -1359,16 +1528,17 @@
 
             const years = [...new Set(salesData.map(s => new Date(s.saleDate).getFullYear()))];
             yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y => `<option value="${y}">${y}</option>`).join("");
-            document.getElementById('loadingIndicator').classList.add('hidden');
+            hideLoading();
         } catch (err) {
             console.error(err);
-            document.getElementById('loadingIndicator').classList.add('hidden');
+            hideLoading();
         }
     }
 
     function buildAnalytics(stock, salesData) {
         const months = {};
         const productStats = {};
+        const revenueStats = {}; 
         const channelStats = {};
         const inventoryStats = {};
         const now = new Date();
@@ -1392,6 +1562,7 @@
             const d = new Date(s.purchaseDate || s._id.substring(0, 8) * 1000);
             const cost = Number(s.cost || 0);
             
+            // Build Inventory Pie Chart Data
             const cat = s.category || "Misc";
             inventoryStats[cat] = (inventoryStats[cat] || 0) + cost;
 
@@ -1407,19 +1578,17 @@
             const key = d.toLocaleString("default", { month: "short", year: "numeric" });
             if (!months[key]) months[key] = { investment: 0, sales: 0, profit: 0 };
             
-            const netPrice = (Number(s.soldPrice) || 0) - (Number(s.discount) || 0);
+            const netPrice = (Number(s.soldPrice) || 0) - (Number(s.discount) || 0) - (Number(s.distributorMargin) || 0);
             const actualProfit = netPrice - (Number(s.manufacturingCost) || 0);
             
             months[key].sales += netPrice;
             months[key].profit += actualProfit;
             
-            // Clean product name to group variations together (e.g. 'Aventus' instead of 'Aventus 50ml')
-            let pName = s.productName || "Unknown";
-            pName = pName.trim();
-            // Optional: Capitalize first letter of each word to normalize case differences
-            pName = pName.replace(/\b\w/g, c => c.toUpperCase());
+            // Clean product name for charts
+            const pName = getNormalizedProductName(s.productName);
             
             productStats[pName] = (productStats[pName] || 0) + actualProfit;
+            revenueStats[pName] = (revenueStats[pName] || 0) + netPrice; // NEW
             
             const channel = s.referenceSource || "Other";
             channelStats[channel] = (channelStats[channel] || 0) + netPrice;
@@ -1435,7 +1604,7 @@
         if (salesChart) salesChart.destroy();
         salesChart = new Chart(salesChartCanvas, {
             type: "bar",
-            data: { labels, datasets: [{ label: "Investment", data: labels.map(m => months[m].investment), backgroundColor: '#818cf8' }, { label: "Sales", data: labels.map(m => months[m].sales), backgroundColor: '#10b981' }] },
+            data: { labels, datasets: [{ label: "Investment", data: labels.map(m => months[m].investment), backgroundColor: '#818cf8' }, { label: "Sales (Rev)", data: labels.map(m => months[m].sales), backgroundColor: '#10b981' }] },
             options: { responsive: true, plugins: { legend: { position: "top" } } }
         });
 
@@ -1449,11 +1618,21 @@
             options: { responsive: true }
         });
 
+        // Top 5 Profit Chart
         const top5Products = Object.entries(productStats).sort(([, a], [, b]) => b - a).slice(0, 5);
         if (topProductsChart) topProductsChart.destroy();
         topProductsChart = new Chart(topProductsChartCanvas, {
             type: "bar",
             data: { labels: top5Products.map(p => p[0]), datasets: [{ label: "Net Profit", data: top5Products.map(p => p[1]), backgroundColor: '#ec4899' }] },
+            options: { indexAxis: 'y', responsive: true }
+        });
+
+        // Top 5 Revenue Chart
+        const top5Rev = Object.entries(revenueStats).sort(([, a], [, b]) => b - a).slice(0, 5);
+        if (topRevenueChart) topRevenueChart.destroy();
+        topRevenueChart = new Chart(topRevenueChartCanvas, {
+            type: "bar",
+            data: { labels: top5Rev.map(p => p[0]), datasets: [{ label: "Total Revenue", data: top5Rev.map(p => p[1]), backgroundColor: '#14b8a6' }] },
             options: { indexAxis: 'y', responsive: true }
         });
 
@@ -1496,30 +1675,25 @@
         const textDark = [50, 50, 50]; 
         const firstSale = sales[0];
         
-        // 1. Clean White Header
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, pageWidth, 50, 'F');
         
-        // Golden Company Title
         doc.setFont("times", "bold");
         doc.setFontSize(26);
         doc.setTextColor(...gold); 
         doc.text("ETERNAL ESSENCE", hasLogo ? 48 : 15, 24);
         
-        // Subtitle "FRAGRANCES"
         doc.setFont("times", "normal");
         doc.setFontSize(11);
         doc.setTextColor(150, 150, 150);
         doc.text("FRAGRANCES", hasLogo ? 49 : 16, 30, { charSpace: 2 });
         
-        // Dark Company Contact
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
         doc.text("Mumbai, Maharashtra 400011", hasLogo ? 48 : 15, 38);
         doc.text("Phone: +91 7303862657  |  Insta: @eternal_essense", hasLogo ? 48 : 15, 43);
 
-        // TAX INVOICE Tag on Right
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...gold);
@@ -1531,12 +1705,10 @@
         doc.text(`No: ${invoiceNumber}`, pageWidth - 14, 34, { align: "right" });
         doc.text(`Date: ${new Date(firstSale.saleDate).toLocaleDateString()}`, pageWidth - 14, 40, { align: "right" });
 
-        // Header Line
         doc.setDrawColor(...gold);
         doc.setLineWidth(0.5);
         doc.line(14, 48, pageWidth - 14, 48);
 
-        // 2. Billed To Section
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...textDark);
@@ -1557,28 +1729,25 @@
             currentYOffset += splitAddress.length * 4.5;
         }
 
-        // 3. Main Item Table (With added 'Type' column)
         let startTableY = Math.max(90, currentYOffset + 8);
         let subTotal = 0;
         const tableBody = sales.map((sale, i) => {
-            const itemTotal = sale.soldPrice || 0;
+            const itemTotal = sale.soldPrice || 0; // Customer sees full price
             subTotal += itemTotal;
             
-            // Smart Fallback for category
-            let prodType = sale.category;
+            let prodType = sale.category || sale.saleCat;
             if (!prodType) {
                 if ((sale.productName || "").toLowerCase().includes("attar")) prodType = "Attar";
                 else prodType = "Perfume";
             }
             
-            // Format Description (Name + ml)
             let desc = sale.productName || 'Unknown Item';
             if (sale.size_ml) desc += ` ${sale.size_ml} ml`;
 
             return [
                 i + 1,
                 desc,
-                prodType, // Injecting the Type into the table
+                prodType, 
                 sale.units || 1,
                 `Rs ${itemTotal.toFixed(2)}`
             ];
@@ -1593,8 +1762,8 @@
             bodyStyles: { textColor: textDark, fontSize: 10 },
             columnStyles: {
                 0: { cellWidth: 10 },
-                2: { cellWidth: 25, halign: 'center' }, // Styling for Type Column
-                3: { cellWidth: 15, halign: 'center' }, // Styling for Qty Column
+                2: { cellWidth: 25, halign: 'center' },
+                3: { cellWidth: 15, halign: 'center' },
                 4: { halign: 'right' }
             },
             margin: { left: 14, right: 14 }
@@ -1602,7 +1771,6 @@
 
         const finalY = doc.lastAutoTable.finalY || startTableY;
         
-        // 4. Financial Calculations
         let discount = firstSale.invoiceDiscount || 0;
         let cgstPct = firstSale.cgstPercent || 0;
         let sgstPct = firstSale.sgstPercent || 0;
@@ -1614,7 +1782,6 @@
         let igstAmt = taxableAmt * (igstPct / 100);
         let grandTotal = taxableAmt + cgstAmt + sgstAmt + igstAmt;
 
-        // 5. Summary Box on Right
         let sumY = finalY + 12;
 
         let boxHeight = 15; 
@@ -1658,22 +1825,17 @@
         doc.text("Grand Total:", labelX, sumY);
         doc.text(`Rs ${Math.round(grandTotal).toFixed(2)}`, rightAlignX, sumY, { align: "right" });
 
-        // 6. Signatory & Footer
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(150);
         doc.text("Authorized Signatory", rightAlignX, sumY + 30, { align: "right" });
         doc.line(rightAlignX - 40, sumY + 25, rightAlignX, sumY + 25);
 
-        // Dynamic Revision and Last Updated Tracking
         doc.setFontSize(8);
         doc.setTextColor(200);
         const revCount = firstSale.revisionCount || 0;
-        let footerTracking = `Printed: ${new Date().toLocaleString()}`;
-        if (revCount > 0) {
-            footerTracking = `Rev: ${revCount} | Last Updated: ${new Date().toLocaleString()} | ` + footerTracking;
-        }
-        doc.text(footerTracking, 14, 285);
+        const lastUpdatedStr = firstSale.updatedAt ? new Date(firstSale.updatedAt).toLocaleDateString() : new Date(firstSale.saleDate).toLocaleDateString();
+        doc.text(`Rev: ${revCount} | Updated: ${lastUpdatedStr} | Printed: ${new Date().toLocaleDateString()}`, 14, 285);
 
         doc.setFont("times", "italic");
         doc.setFontSize(11);

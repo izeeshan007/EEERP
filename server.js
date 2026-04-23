@@ -111,7 +111,7 @@ app.delete("/api/stock/:id", requireAuth, async(req,res)=>{
 
 app.post("/api/sales", requireAuth, async(req,res)=>{
  let s=req.body;
- s.profit = s.soldPrice - (s.discount || 0) - s.manufacturingCost;
+ s.profit = s.soldPrice - (s.discount || 0) - (s.distributorMargin || 0) - s.manufacturingCost;
  s.profitPercent = s.manufacturingCost > 0 ? (s.profit / s.manufacturingCost) * 100 : 0;
 
  const data=await Sale.create(s);
@@ -124,7 +124,7 @@ app.get("/api/sales", requireAuth, async(req,res)=>{
 
 app.put("/api/sales/:id", requireAuth, async(req,res)=>{
  let s=req.body;
- s.profit = s.soldPrice - (s.discount || 0) - s.manufacturingCost;
+ s.profit = s.soldPrice - (s.discount || 0) - (s.distributorMargin || 0) - s.manufacturingCost;
  s.profitPercent = s.manufacturingCost > 0 ? (s.profit / s.manufacturingCost) * 100 : 0;
 
  const data=await Sale.findByIdAndUpdate(
@@ -193,7 +193,7 @@ app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
     sale.invoiceNumber = null;
     sale.invoiceDiscount = 0;
     sale.discount = 0;
-    sale.profit = sale.soldPrice - sale.manufacturingCost;
+    sale.profit = sale.soldPrice - (sale.distributorMargin || 0) - sale.manufacturingCost;
     sale.cgstPercent = 0;
     sale.sgstPercent = 0;
     sale.igstPercent = 0;
@@ -241,7 +241,7 @@ app.delete("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
         sale.invoiceNumber = null;
         sale.invoiceDiscount = 0;
         sale.discount = 0;
-        sale.profit = sale.soldPrice - sale.manufacturingCost;
+        sale.profit = sale.soldPrice - (sale.distributorMargin || 0) - sale.manufacturingCost;
         sale.cgstPercent = 0;
         sale.sgstPercent = 0;
         sale.igstPercent = 0;
@@ -254,7 +254,6 @@ app.delete("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
     res.json({ success: true });
 });
 
-
 // Helper to calculate proportional discount spread
 async function recalculateInvoiceDiscount(invoiceNumber) {
     const items = await Sale.find({ invoiceNumber });
@@ -265,7 +264,7 @@ async function recalculateInvoiceDiscount(invoiceNumber) {
 
     for (const item of items) {
         const itemDiscount = subTotal > 0 ? (item.soldPrice / subTotal) * invoiceDiscount : 0;
-        const newProfit = item.soldPrice - itemDiscount - item.manufacturingCost;
+        const newProfit = item.soldPrice - itemDiscount - (item.distributorMargin || 0) - item.manufacturingCost;
 
         await Sale.findByIdAndUpdate(item._id, {
             discount: itemDiscount,
@@ -281,8 +280,16 @@ app.get("/api/dashboard", requireAuth, async(req,res)=>{
  const sales=await Sale.find();
 
  const totalInvestment = stock.reduce((a,b)=>a+(b.cost||0),0);
- const totalSales = sales.reduce((a,b)=>a+((b.soldPrice||0) - (b.discount||0)),0);
- const totalProfit = sales.reduce((a,b)=>a+(b.profit||0),0);
+ 
+ // Dead stock cost to be subtracted from final profit
+ const deadStockCost = stock.filter(s => s.status !== "Active").reduce((a,b)=>a+(b.cost||0), 0);
+
+ // Total actual revenue (excludes discounts and distributor margins)
+ const totalSales = sales.reduce((a,b)=>a+((b.soldPrice||0) - (b.discount||0) - (b.distributorMargin||0)),0);
+ 
+ // Base profit minus the dead stock losses
+ const rawProfit = sales.reduce((a,b)=>a+(b.profit||0),0);
+ const totalProfit = rawProfit - deadStockCost;
 
  res.json({
   totalInvestment,

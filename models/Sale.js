@@ -13,11 +13,21 @@ const SaleSchema = new mongoose.Schema({
   profit: Number,
   profitPercent: Number,
   
+  // --- New: Margin & Deep Entry Tracking ---
+  distributorMargin: { type: Number, default: 0 },
+  saleCat: String,
+  bottleCat: String,
+  bottlePrice: Number,
+  boxName: String,
+  pouchName: String,
+  oilPercent: Number,
+  otherCost: Number,
+  
   // --- Item Level vs Invoice Level ---
   discount: { type: Number, default: 0 }, 
   invoiceNumber: { type: String, default: null },
   invoiceDiscount: { type: Number, default: 0 },
-  revisionCount: { type: Number, default: 0 }, // NEW: Tracks how many times an invoice was modified
+  revisionCount: { type: Number, default: 0 }, 
   
   // --- Tax & Customer Info ---
   cgstPercent: { type: Number, default: 0 },
