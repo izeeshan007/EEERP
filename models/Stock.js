@@ -14,8 +14,11 @@ const StockSchema = new mongoose.Schema({
 
   cost: Number,
   pricePerUnit: Number,
+
+  // --- NEW: Log concentration if it's a finished batch ---
+  oilPercent: { type: Number, default: 0 },
   
-  status: { type: String, default: "Active" }, // NEW: "Active", "Dead Stock", "Loss"
+  status: { type: String, default: "Active" }, // "Active", "Dead Stock", "Loss"
 
   purchaseDate: {
     type: Date,

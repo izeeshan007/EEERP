@@ -31,7 +31,7 @@
             display: none; justify-content: center; align-items: center;
             z-index: 50;
         }
-        tr.sales-row:hover, #stockRecordsTable tr:hover, #invoicesRecordsTable tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
+        tr.sales-row:hover, #stockRecordsTable tr:hover, #batchRecordsTable tr:hover, #invoicesRecordsTable tr:hover { background: #f8fafc; cursor: pointer; transition: background 0.2s; }
         .nav-link.active {
             border-bottom: 2px solid #4f46e5;
             color: #4f46e5;
@@ -58,7 +58,7 @@
             <div class="bg-indigo-600 p-1.5 rounded-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             </div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.2</span></h1>
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.4</span></h1>
         </div>
         <div class="flex items-center gap-4">
             <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden animate-pulse bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
@@ -109,18 +109,20 @@
     </div>
 
     <div class="flex gap-6 border-b mb-6 overflow-x-auto">
-        <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Inventory Stock</button>
+        <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Raw Materials</button>
+        <button onclick="showTab('batches')" id="tab-batches" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Finished Batches</button>
         <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales History</button>
         <button onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
         <button onclick="showTab('analytics')" id="tab-analytics" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Business Analytics</button>
     </div>
 
+    <!-- RAW MATERIALS TAB -->
     <div id="inventory" class="tab-content active space-y-6">
         <div class="grid lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1 glass-card p-6 rounded-2xl h-fit">
                 <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round"/></svg>
-                    New Stock Entry
+                    New Raw Material
                 </h2>
                 <div class="space-y-3">
                     <label class="block text-sm font-medium text-slate-600">Category</label>
@@ -142,7 +144,7 @@
 
             <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-slate-800">Stock Records</h2>
+                    <h2 class="text-lg font-bold text-slate-800">Raw Material Records</h2>
                     <button onclick="clearFilters('stock')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
                 </div>
                 <div class="overflow-x-auto">
@@ -159,7 +161,7 @@
                                 <th class="py-2 pr-2"><input type="text" id="filter-stock-name" class="filter-input" placeholder="Filter name..." oninput="renderStockTable()"></th>
                                 <th class="py-2 pr-2">
                                     <select id="filter-stock-category" class="filter-input" onchange="renderStockTable()">
-                                        <option value="">All Categories</option>
+                                        <option value="">All Materials</option>
                                         <option>Attar Oil</option><option>Raw Perfume</option><option>Bottle</option>
                                         <option>Pouch</option><option>Box</option><option>Aroma Chemical</option>
                                         <option>Equipment</option><option>Misc</option>
@@ -181,13 +183,102 @@
                     </table>
                 </div>
                 <div class="mt-4 pt-4 border-t flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">Filtered Value:</span>
+                    <span class="text-slate-500 font-medium">Filtered Value (Raw):</span>
                     <span class="text-lg font-bold text-indigo-600">₹ <span id="stockTotal">0</span></span>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- FINISHED BATCHES TAB -->
+    <div id="batches" class="tab-content space-y-6">
+        <div class="grid lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1 glass-card p-6 rounded-2xl h-fit">
+                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    New Pre-mixed Batch
+                </h2>
+                <div class="space-y-3">
+                    <input id="batchName" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Batch Name (e.g., Aventus 500ml Pre-mix)">
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="batchType" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calcNewBatchCost()">
+                            <option value="Perfume">Perfume</option>
+                            <option value="Attar">Attar</option>
+                        </select>
+                        <input id="batchSize" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Volume (ml)" oninput="calcNewBatchCost()">
+                    </div>
+                    
+                    <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                        <label class="text-[10px] font-bold text-indigo-800 uppercase">Auto-Calculate RM Cost (Optional)</label>
+                        <div class="grid grid-cols-2 gap-2 mt-1">
+                             <input id="batchOilName" list="oilList" class="p-2 border border-slate-200 rounded-lg bg-white text-xs outline-none focus:border-indigo-500" placeholder="Attar Oil Used" oninput="calcNewBatchCost()">
+                             <input id="batchOilPct" type="number" class="p-2 border border-slate-200 rounded-lg bg-white text-xs outline-none focus:border-indigo-500" placeholder="Concentration %" oninput="calcNewBatchCost()">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-slate-400">Total Production Cost (₹)</label>
+                        <input id="batchCost" type="number" step="0.01" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus font-bold text-indigo-700" placeholder="Total Cost (₹)">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-slate-400">Creation Date</label>
+                        <input id="batchDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
+                    </div>
+
+                    <button onclick="addBatch()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-indigo-200 mt-4">Create Batch</button>
+                    <p id="batchMsg" class="text-center text-sm font-medium text-emerald-600"></p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 glass-card p-6 rounded-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-slate-800">Batch Inventory</h2>
+                    <button onclick="clearFilters('batch')" class="text-xs text-indigo-600 hover:underline">Clear Filters</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm" id="batchRecordsTable">
+                        <thead>
+                            <tr class="text-slate-500 border-b">
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('batch', 'name')">Batch Name ↕</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('batch', 'type')">Type ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('batch', 'size_ml')">Remaining Vol ↕</th>
+                                <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('batch', 'cost')">Asset Value ↕</th>
+                                <th class="pb-2 font-semibold text-center sort-header" onclick="setSort('batch', 'status')">Status ↕</th>
+                            </tr>
+                            <tr class="bg-slate-50/50">
+                                <th class="py-2 pr-2"><input type="text" id="filter-batch-name" class="filter-input" placeholder="Filter batch..." oninput="renderBatchTable()"></th>
+                                <th class="py-2 pr-2">
+                                    <select id="filter-batch-type" class="filter-input" onchange="renderBatchTable()">
+                                        <option value="">All Types</option>
+                                        <option>Perfume</option>
+                                        <option>Attar</option>
+                                    </select>
+                                </th>
+                                <th class="py-2"></th>
+                                <th class="py-2"></th>
+                                <th class="py-2 text-center pl-2">
+                                    <select id="filter-batch-status" class="filter-input" onchange="renderBatchTable()">
+                                        <option value="">All Statuses</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Dead Stock">Dead Stock</option>
+                                        <option value="Loss">Loss/Spilled</option>
+                                    </select>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchTableBody" class="divide-y"></tbody>
+                    </table>
+                </div>
+                <div class="mt-4 pt-4 border-t flex justify-between items-center">
+                    <span class="text-slate-500 font-medium">Filtered Value (Batches):</span>
+                    <span class="text-lg font-bold text-indigo-600">₹ <span id="batchTotal">0</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SALES ENTRY TAB -->
     <div id="sales-entry" class="tab-content space-y-6">
         <div class="grid lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1 glass-card p-6 rounded-2xl h-fit">
@@ -195,6 +286,12 @@
                     <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     New Sale
                 </h2>
+                
+                <div class="flex items-center gap-2 mb-4 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
+                    <input type="checkbox" id="isFromBatch" class="w-4 h-4 text-indigo-600 rounded cursor-pointer" onchange="toggleBatchMode()">
+                    <label for="isFromBatch" class="text-[11px] font-bold text-indigo-900 uppercase cursor-pointer">Deduct from Pre-mixed Batch</label>
+                </div>
+
                 <div class="space-y-3">
                     <div class="grid grid-cols-2 gap-2">
                         <select id="saleCat" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="changeSaleMode()">
@@ -203,7 +300,7 @@
                         </select>
                         <select id="saleSize" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calculateMfgCost()"></select>
                     </div>
-                    <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar/Perfume Name" oninput="calculateMfgCost()">
+                    <input id="productName" list="oilList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Attar/Perfume Name" onchange="autoFillBatchData(); calculateMfgCost();" oninput="calculateMfgCost()">
                     
                     <div class="grid grid-cols-3 gap-2">
                         <input id="oilPercent" class="p-2.5 border rounded-xl bg-slate-50 input-focus" type="number" value="45" placeholder="Oil %" oninput="calculateMfgCost()">
@@ -316,6 +413,7 @@
         </div>
     </div>
 
+    <!-- INVOICES TAB -->
     <div id="invoices" class="tab-content space-y-6">
         <div class="glass-card p-6 rounded-2xl flex flex-col h-full">
             <h2 class="text-lg font-bold text-slate-800 mb-4">Generated Invoices</h2>
@@ -349,6 +447,7 @@
         </div>
     </div>
 
+    <!-- ANALYTICS TAB -->
     <div id="analytics" class="tab-content space-y-6">
         <div class="glass-card p-6 rounded-2xl">
             <div class="flex flex-wrap gap-4 items-center mb-6">
@@ -545,6 +644,7 @@
 <datalist id="supplierList"></datalist>
 <datalist id="customerList"></datalist>
 <datalist id="referenceList"></datalist>
+<datalist id="batchList"></datalist>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -565,6 +665,7 @@
     let inventoryPieChart = null;
 
     let stockSort = { key: 'id', dir: -1 };
+    let batchSort = { key: 'id', dir: -1 };
     let salesSort = { key: 'id', dir: -1 };
 
     // --- Loading & Sync Functions ---
@@ -583,11 +684,6 @@
         document.getElementById('loadingIndicator').classList.add('hidden');
     }
 
-    // Keep Render server awake
-    setInterval(() => {
-        fetch('/api/check-auth').catch(() => {});
-    }, 840000); // Pings every 14 minutes
-
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -603,6 +699,7 @@
     checkAuth();
 
     document.getElementById('date').value = new Date().toISOString().split("T")[0];
+    document.getElementById('batchDate').value = new Date().toISOString().split("T")[0];
 
     function filterSalesStatus(status) {
         showTab('sales-entry');
@@ -633,7 +730,7 @@
         return name.trim();
     }
 
-    // Normalizer for Best Sellers Chart (Case Insensitive, base name only)
+    // Normalizer for Best Sellers Chart
     function getNormalizedProductName(name) {
         if(!name) return "Unknown";
         let clean = name.toLowerCase().trim();
@@ -645,7 +742,7 @@
         const nameVal = document.getElementById('name')?.value;
         if(!nameVal) return;
         
-        const match = stockCache.find(s => s.name === nameVal);
+        const match = stockCache.find(s => s.name === nameVal && s.category !== "Finished Product");
         if(match) {
             if(document.getElementById('designerName') && match.designerName && !document.getElementById('designerName').value) document.getElementById('designerName').value = match.designerName;
             if(document.getElementById('supplier') && match.supplier && !document.getElementById('supplier').value) document.getElementById('supplier').value = match.supplier;
@@ -664,12 +761,84 @@
         if(sizeElemId === 'saleSize') calculateMfgCost();
     }
 
+    // Calculate cost for New Batch Entry in the dedicated Batches Tab
+    window.calcNewBatchCost = function() {
+        const oilName = document.getElementById('batchOilName').value;
+        const pct = Number(document.getElementById('batchOilPct').value || 0);
+        const totalVolume = Number(document.getElementById('batchSize').value || 0);
+        const type = document.getElementById('batchType').value;
+
+        if(!oilName || totalVolume <= 0) return;
+
+        let batchCost = 0;
+        const avgOilPrice = getAverageCost(s => s.name === oilName && s.category === "Attar Oil");
+
+        if(type === "Attar") {
+            batchCost = totalVolume * avgOilPrice;
+        } else {
+            const oilQty = totalVolume * (pct / 100);
+            const ethanolQty = totalVolume - oilQty;
+            const avgEthPrice = getAverageCost(s => s.name?.toLowerCase().includes("ethanol"));
+            batchCost = (oilQty * avgOilPrice) + (ethanolQty * avgEthPrice);
+        }
+
+        document.getElementById('batchCost').value = batchCost.toFixed(2);
+    }
+
+    // Calculate cost for Edit Batch Modal
+    window.calcBatchCost = function() {
+        const oilName = document.getElementById('e_batchOilName')?.value;
+        const pct = Number(document.getElementById('e_oilPercent')?.value || 0);
+        const totalVolume = Number(document.getElementById('e_size')?.value || 0);
+        const type = document.getElementById('e_type')?.value;
+
+        if(!oilName || totalVolume <= 0) return;
+
+        let batchCost = 0;
+        const avgOilPrice = getAverageCost(s => s.name === oilName && s.category === "Attar Oil");
+
+        if(type === "Attar") {
+            batchCost = totalVolume * avgOilPrice;
+        } else {
+            const oilQty = totalVolume * (pct / 100);
+            const ethanolQty = totalVolume - oilQty;
+            const avgEthPrice = getAverageCost(s => s.name?.toLowerCase().includes("ethanol"));
+            batchCost = (oilQty * avgOilPrice) + (ethanolQty * avgEthPrice);
+        }
+
+        const costField = document.getElementById('e_cost');
+        if(costField) {
+            costField.value = batchCost.toFixed(2);
+            document.getElementById('batchCalcResult').innerText = `Est Raw Material Cost: ₹${batchCost.toFixed(2)}`;
+        }
+    }
+
     function getFieldsHTML(c, data = {}) {
         let html = "";
         if (c !== "Bottle") {
-            html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Item Name" value="${data.name || ''}" onchange="${data._id ? '' : 'autoFillStock()'}">`;
+            html += `<input id="${data._id ? 'e_' : ''}name" list="nameList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="${c === 'Finished Product' ? 'Batch Name' : 'Item Name'}" value="${data.name || ''}" onchange="${data._id ? '' : 'autoFillStock()'}">`;
         }
-        if(c === "Attar Oil"){
+        
+        if (c === "Finished Product") {
+            html += `
+            <div class="grid grid-cols-2 gap-2 mt-2">
+                <select id="${data._id ? 'e_' : ''}type" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calcBatchCost()">
+                    <option ${data.type==='Perfume'?'selected':''}>Perfume</option>
+                    <option ${data.type==='Attar'?'selected':''}>Attar</option>
+                </select>
+                <input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Volume (ml)" value="${data.size_ml || ''}" oninput="calcBatchCost()">
+            </div>
+
+            <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 mt-2">
+                <label class="text-[10px] font-bold text-indigo-800 uppercase">Auto-Calculate Raw Material Cost (Optional)</label>
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                     <input id="${data._id ? 'e_' : ''}batchOilName" list="oilList" class="p-2 border border-slate-200 rounded-lg bg-white text-xs outline-none focus:border-indigo-500" placeholder="Attar Oil Used" oninput="calcBatchCost()">
+                     <input id="${data._id ? 'e_' : ''}oilPercent" type="number" class="p-2 border border-slate-200 rounded-lg bg-white text-xs outline-none focus:border-indigo-500" placeholder="Concentration %" value="${data.oilPercent || ''}" oninput="calcBatchCost()">
+                </div>
+                <p id="batchCalcResult" class="text-[10px] text-indigo-600 font-bold mt-1.5 text-right uppercase tracking-wider">Est Raw Material Cost: ₹0.00</p>
+            </div>
+            `;
+        } else if(c === "Attar Oil"){
             html += `
             <input id="${data._id ? 'e_' : ''}designerName" list="designerList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Designer Name" value="${data.designerName || ''}">
             <input id="${data._id ? 'e_' : ''}supplier" list="supplierList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Supplier" value="${data.supplier || ''}">
@@ -679,7 +848,7 @@
                 <option value="500" ${data.size_ml==500?'selected':''}>500 ml</option><option value="1000" ${data.size_ml==1000?'selected':''}>1000 ml</option>
             </select>`;
         }
-        if(c === "Raw Perfume") {
+        else if(c === "Raw Perfume") {
              html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in ml" value="${data.size_ml || ''}">`;
         } else if(c === "Aroma Chemical"){
              html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in grams" value="${data.size_ml || ''}">`;
@@ -704,15 +873,16 @@
                 <option ${data.subCategory=='Premium'?'selected':''}>Premium</option>
             </select>`;
         }
+        
         html += `
         <div class="grid grid-cols-2 gap-2 mt-2">
-            <input id="${data._id ? 'e_' : ''}units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Units" value="${data.units || ''}">
+            <input id="${data._id ? 'e_' : ''}units" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="${c === 'Finished Product' ? 'Total Units' : 'Units (Boxes/Pkts)'}" value="${data.units || 1}">
             <input id="${data._id ? 'e_' : ''}cost" type="number" class="p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Total Cost" value="${data.cost || ''}">
         </div>
         
         <div class="grid grid-cols-2 gap-2 mt-2">
             <div class="space-y-1">
-                <label class="text-[10px] uppercase font-bold text-slate-400">Purchase Date</label>
+                <label class="text-[10px] uppercase font-bold text-slate-400">${c === 'Finished Product' ? 'Batch Date' : 'Purchase Date'}</label>
                 <input id="${data._id ? 'e_' : ''}stockPurchaseDate" type="date" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" value="${data.purchaseDate ? data.purchaseDate.split('T')[0] : ''}">
             </div>
             <div class="space-y-1">
@@ -728,7 +898,8 @@
     }
 
     function updateNameList(selectedCategory) {
-        const filteredNames = [...new Set(stockCache.filter(s => s.category === selectedCategory).map(s => s.name))].filter(Boolean);
+        // Exclude Finished Products from general name autocompletion
+        const filteredNames = [...new Set(stockCache.filter(s => s.category === selectedCategory && s.category !== "Finished Product").map(s => s.name))].filter(Boolean);
         nameList.innerHTML = filteredNames.map(v => `<option value="${v}">`).join("");
     }
 
@@ -737,6 +908,10 @@
             stockSort.dir = (stockSort.key === key) ? stockSort.dir * -1 : 1;
             stockSort.key = key;
             renderStockTable();
+        } else if (table === 'batch') {
+            batchSort.dir = (batchSort.key === key) ? batchSort.dir * -1 : 1;
+            batchSort.key = key;
+            renderBatchTable();
         } else {
             salesSort.dir = (salesSort.key === key) ? salesSort.dir * -1 : 1;
             salesSort.key = key;
@@ -751,6 +926,12 @@
             const statusFilterElem = document.getElementById('filter-stock-status');
             if(statusFilterElem) statusFilterElem.value = '';
             renderStockTable();
+        } else if (table === 'batch') {
+            document.getElementById('filter-batch-name').value = '';
+            document.getElementById('filter-batch-type').value = '';
+            const statusFilterElem = document.getElementById('filter-batch-status');
+            if(statusFilterElem) statusFilterElem.value = '';
+            renderBatchTable();
         } else {
             document.getElementById('filter-sales-product').value = '';
             document.getElementById('filter-sales-customer').value = '';
@@ -765,12 +946,14 @@
         const statusElem = document.getElementById('filter-stock-status');
         const statusFilter = statusElem ? statusElem.value : "";
 
+        // Raw Materials table should NEVER show Finished Products
         let filtered = stockCache.filter(s => {
+            const isNotBatch = s.category !== "Finished Product";
             const nameMatch = (s.name || "").toLowerCase().includes(nameFilter);
             const catMatch = (catFilter === "" || s.category === catFilter);
             const sStatus = s.status || "Active";
             const statusMatch = (statusFilter === "" || sStatus === statusFilter);
-            return nameMatch && catMatch && statusMatch;
+            return isNotBatch && nameMatch && catMatch && statusMatch;
         });
 
         filtered.sort((a,b) => {
@@ -792,6 +975,43 @@
         }).join("");
         
         stockTotal.innerText = filtered.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
+    }
+
+    function renderBatchTable() {
+        const nameFilter = document.getElementById('filter-batch-name').value.toLowerCase();
+        const typeFilter = document.getElementById('filter-batch-type').value;
+        const statusElem = document.getElementById('filter-batch-status');
+        const statusFilter = statusElem ? statusElem.value : "";
+
+        // Batch Table ONLY shows Finished Products
+        let filtered = stockCache.filter(s => {
+            const isBatch = s.category === "Finished Product";
+            const nameMatch = (s.name || "").toLowerCase().includes(nameFilter);
+            const typeMatch = (typeFilter === "" || s.type === typeFilter);
+            const sStatus = s.status || "Active";
+            const statusMatch = (statusFilter === "" || sStatus === statusFilter);
+            return isBatch && nameMatch && typeMatch && statusMatch;
+        });
+
+        filtered.sort((a,b) => {
+            let valA = a[batchSort.key], valB = b[batchSort.key];
+            if(typeof valA === 'string') return valA.localeCompare(valB) * batchSort.dir;
+            return (valA - valB) * batchSort.dir;
+        });
+
+        document.getElementById('batchTableBody').innerHTML = filtered.map(s => {
+            const isLoss = (s.status === 'Loss' || s.status === 'Dead Stock');
+            return `
+            <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
+                <td class="py-3 font-bold text-indigo-900 ${isLoss ? 'text-red-500 line-through' : ''}">${s.name||""}</td>
+                <td class="py-3 text-slate-500">${s.type||"Perfume"}</td>
+                <td class="py-3 text-right font-mono">${s.size_ml} ml</td>
+                <td class="py-3 text-right font-bold ${isLoss ? 'text-red-500' : 'text-indigo-600'}">₹${s.cost||0}</td>
+                <td class="py-3 text-center text-xs font-bold ${s.status === 'Active' || !s.status ? 'text-emerald-500' : 'text-red-500'}">${s.status || 'Active'}</td>
+            </tr>`
+        }).join("");
+        
+        document.getElementById('batchTotal').innerText = filtered.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
     }
 
     function renderSalesTable() {
@@ -828,7 +1048,10 @@
                         : `<input type="checkbox" class="sale-checkbox w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer" value="${item._id}" onchange="togglePrintButton()">`
                     }
                 </td>
-                <td class="py-3 font-medium">${formatProductName(item)}</td>
+                <td class="py-3 font-medium">
+                    ${formatProductName(item)}
+                    ${item.isFromBatch ? `<span class="ml-2 text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">From Batch</span>` : ''}
+                </td>
                 <td class="py-3 text-slate-500">${item.customerName||""}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
@@ -959,7 +1182,6 @@
         document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${currentInvoiceGroup}`;
         document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.customerName || 'N/A'}`;
         
-        // Address autofill from past invoices if current is blank
         let prefAddress = first.customerAddress || "";
         let prefPhone = first.customerPhone || "";
         
@@ -1137,6 +1359,34 @@
         hideLoading();
     }
 
+    // --- Batch Toggle ---
+    window.toggleBatchMode = function() {
+        const isBatch = document.getElementById('isFromBatch').checked;
+        const oilPctInput = document.getElementById('oilPercent');
+        const productInput = document.getElementById('productName');
+
+        if(isBatch) {
+            oilPctInput.style.display = 'none';
+            productInput.setAttribute('list', 'batchList');
+            productInput.placeholder = "Select Batch Name";
+            productInput.value = "";
+        } else {
+            oilPctInput.style.display = 'inline-block';
+            productInput.setAttribute('list', 'oilList');
+            productInput.placeholder = "Attar/Perfume Name";
+        }
+        calculateMfgCost();
+    };
+    
+    window.autoFillBatchData = function() {
+        if(document.getElementById('isFromBatch').checked) {
+            const batch = stockCache.find(s => s.category === "Finished Product" && s.name === document.getElementById('productName').value);
+            if(batch && batch.oilPercent) {
+                document.getElementById('oilPercent').value = batch.oilPercent;
+            }
+        }
+    }
+
     // --- Standard Modal Functions ---
     function openModal(type, data){
         editType = type; editId = data._id;
@@ -1271,7 +1521,8 @@
                 units: Number(document.getElementById("e_units")?.value || 0),
                 cost: Number(document.getElementById("e_cost")?.value || 0),
                 status: document.getElementById("e_status") ? document.getElementById("e_status").value : "Active",
-                purchaseDate: document.getElementById("e_stockPurchaseDate")?.value
+                purchaseDate: document.getElementById("e_stockPurchaseDate")?.value,
+                oilPercent: Number(document.getElementById("e_oilPercent")?.value || 0)
             };
         } else {
             body = {
@@ -1316,6 +1567,7 @@
         designerList.innerHTML = [...new Set(stockCache.map(s=>s.designerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
         supplierList.innerHTML = [...new Set(stockCache.map(s=>s.supplier))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
         oilList.innerHTML = [...new Set(stockCache.filter(s=>s.category==="Attar Oil").map(o=>o.name))].map(v=>`<option value="${v}">`).join("");
+        batchList.innerHTML = stockCache.filter(s => s.category === "Finished Product" && s.size_ml > 0).map(v => `<option value="${v.name}">`).join("");
         boxNameSelect.innerHTML = `<option value="NA">Select Box (NA)</option>` + [...new Set(stockCache.filter(s=>s.category==="Box").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
         pouchNameSelect.innerHTML = `<option value="NA">Select Pouch (NA)</option>` + [...new Set(stockCache.filter(s=>s.category==="Pouch").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
         changeFields();
@@ -1329,8 +1581,7 @@
         items.forEach(i => {
             totalCost += Number(i.cost || 0);
             
-            // Only apply ML multiplication to liquid assets. Bottles and Boxes are solid items.
-            if (i.category === "Attar Oil" || i.category === "Raw Perfume" || i.category === "Aroma Chemical") {
+            if (i.category === "Attar Oil" || i.category === "Raw Perfume" || i.category === "Aroma Chemical" || i.category === "Finished Product") {
                 let v = Number(i.size_ml || 0);
                 let u = Number(i.units || 1);
                 if (v > 0) totalQty += (v * u);
@@ -1370,23 +1621,33 @@
     }
 
     function updateTotalFromManual() {
-        const oil = stockCache.find(s => s.name === productName.value && s.category === "Attar Oil");
         const qtySize = Number(saleSize.value || 0);
         const orderQty = Number(saleUnits.value || 1);
         const oilPercentVal = Number(oilPercent.value || 0);
         const extraCost = Number(otherCost.value || 0);
         const manualBottle = Number(bottlePriceInput.value || 0);
+        const isFromBatch = document.getElementById('isFromBatch')?.checked;
 
         let perUnit = 0;
-        if(oil) {
-            const avgOilPrice = getAverageCost(s => s.name === productName.value && s.category === "Attar Oil");
-            if(saleCat.value === "Attar"){
-                perUnit += avgOilPrice * qtySize;
-            } else {
-                const oilQty = qtySize * (oilPercentVal / 100);
-                const ethanolQty = qtySize - oilQty;
-                const avgEthPrice = getAverageCost(s => s.name?.toLowerCase().includes("ethanol"));
-                perUnit += (oilQty * avgOilPrice) + (ethanolQty * avgEthPrice);
+
+        if (isFromBatch) {
+            const batchName = document.getElementById('productName').value;
+            const batch = stockCache.find(s => s.category === "Finished Product" && s.name === batchName && s.size_ml > 0);
+            if (batch) {
+                perUnit += (batch.pricePerUnit || 0) * qtySize;
+            }
+        } else {
+            const oil = stockCache.find(s => s.name === productName.value && s.category === "Attar Oil");
+            if(oil) {
+                const avgOilPrice = getAverageCost(s => s.name === productName.value && s.category === "Attar Oil");
+                if(saleCat.value === "Attar"){
+                    perUnit += avgOilPrice * qtySize;
+                } else {
+                    const oilQty = qtySize * (oilPercentVal / 100);
+                    const ethanolQty = qtySize - oilQty;
+                    const avgEthPrice = getAverageCost(s => s.name?.toLowerCase().includes("ethanol"));
+                    perUnit += (oilQty * avgOilPrice) + (ethanolQty * avgEthPrice);
+                }
             }
         }
 
@@ -1407,17 +1668,19 @@
         const type = saleCat.value;
         saleSize.innerHTML = "";
         
-        // This ensures the sizes immediately match Perfume or Attar rules
         if(type === "Attar"){
             [3,6,8,12,25].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
             document.getElementById('oilPercent').style.display = "none";
         } else {
             [8,20,30,50,100].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
-            document.getElementById('oilPercent').style.display = "inline-block";
+            if(!document.getElementById('isFromBatch').checked) {
+                document.getElementById('oilPercent').style.display = "inline-block";
+            }
         }
         calculateMfgCost();
     }
 
+    // Handles the New Raw Material Entry
     async function addStock(){
         showLoading();
         const cat = category.value;
@@ -1429,9 +1692,10 @@
             subCategory: document.getElementById("subCategory")?.value || "",
             type: document.getElementById("type")?.value || "",
             size_ml: Number(document.getElementById("size")?.value || 0),
-            units: Number(document.getElementById("units")?.value || 0),
+            units: Number(document.getElementById("units")?.value || 1),
             cost: Number(document.getElementById("cost")?.value || 0),
-            purchaseDate: document.getElementById("stockPurchaseDate")?.value
+            purchaseDate: document.getElementById("stockPurchaseDate")?.value,
+            oilPercent: Number(document.getElementById("oilPercent")?.value || 0)
         };
         await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
         
@@ -1443,12 +1707,54 @@
         hideLoading();
     }
 
+    // Handles the explicitly separated New Pre-mixed Batch Entry
+    async function addBatch() {
+        showLoading();
+        const body = {
+            category: "Finished Product",
+            name: document.getElementById("batchName").value,
+            type: document.getElementById("batchType").value,
+            size_ml: Number(document.getElementById("batchSize").value),
+            cost: Number(document.getElementById("batchCost").value),
+            oilPercent: Number(document.getElementById("batchOilPct").value || 0),
+            units: 1, 
+            purchaseDate: document.getElementById("batchDate").value
+        };
+
+        if(!body.name) {
+            alert("Batch Name is required");
+            hideLoading();
+            return;
+        }
+
+        await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        
+        const msg = document.getElementById("batchMsg");
+        msg.innerText = "Batch created successfully!";
+        setTimeout(() => msg.innerText = "", 3000);
+
+        document.getElementById("batchName").value = "";
+        document.getElementById("batchSize").value = "";
+        document.getElementById("batchOilName").value = "";
+        document.getElementById("batchOilPct").value = "";
+        document.getElementById("batchCost").value = "";
+
+        await loadAll();
+        hideLoading();
+    }
+
     async function addSale(){
         showLoading();
         
         const cat = document.getElementById('saleCat').value;
         const sz = document.getElementById('saleSize').value;
         
+        let sourceBatchId = null;
+        if(document.getElementById('isFromBatch').checked) {
+            const b = stockCache.find(s => s.category === "Finished Product" && s.name === document.getElementById('productName').value);
+            if(b) sourceBatchId = b._id;
+        }
+
         await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
             productName:document.getElementById('productName').value, 
             category: cat, 
@@ -1464,7 +1770,9 @@
             bottlePrice:Number(document.getElementById('bottlePriceInput').value),
             units: Number(document.getElementById('saleUnits').value),
             isDelivered: document.getElementById('saleDelivered').checked, 
-            isPaid: document.getElementById('salePaid').checked
+            isPaid: document.getElementById('salePaid').checked,
+            isFromBatch: document.getElementById('isFromBatch').checked,
+            sourceBatchId: sourceBatchId
         })});
 
         const msg = document.getElementById("saleMsg");
@@ -1523,6 +1831,7 @@
             document.getElementById('referenceList').innerHTML = [...new Set(salesData.map(s=>s.referenceSource))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
 
             renderStockTable();
+            renderBatchTable();
             renderSalesTable();
             buildAnalytics(stock, salesData);
 
@@ -1562,7 +1871,6 @@
             const d = new Date(s.purchaseDate || s._id.substring(0, 8) * 1000);
             const cost = Number(s.cost || 0);
             
-            // Build Inventory Pie Chart Data
             const cat = s.category || "Misc";
             inventoryStats[cat] = (inventoryStats[cat] || 0) + cost;
 
@@ -1584,11 +1892,10 @@
             months[key].sales += netPrice;
             months[key].profit += actualProfit;
             
-            // Clean product name for charts
             const pName = getNormalizedProductName(s.productName);
             
             productStats[pName] = (productStats[pName] || 0) + actualProfit;
-            revenueStats[pName] = (revenueStats[pName] || 0) + netPrice; // NEW
+            revenueStats[pName] = (revenueStats[pName] || 0) + netPrice; 
             
             const channel = s.referenceSource || "Other";
             channelStats[channel] = (channelStats[channel] || 0) + netPrice;
@@ -1618,7 +1925,6 @@
             options: { responsive: true }
         });
 
-        // Top 5 Profit Chart
         const top5Products = Object.entries(productStats).sort(([, a], [, b]) => b - a).slice(0, 5);
         if (topProductsChart) topProductsChart.destroy();
         topProductsChart = new Chart(topProductsChartCanvas, {
@@ -1627,7 +1933,6 @@
             options: { indexAxis: 'y', responsive: true }
         });
 
-        // Top 5 Revenue Chart
         const top5Rev = Object.entries(revenueStats).sort(([, a], [, b]) => b - a).slice(0, 5);
         if (topRevenueChart) topRevenueChart.destroy();
         topRevenueChart = new Chart(topRevenueChartCanvas, {
@@ -1732,7 +2037,7 @@
         let startTableY = Math.max(90, currentYOffset + 8);
         let subTotal = 0;
         const tableBody = sales.map((sale, i) => {
-            const itemTotal = sale.soldPrice || 0; // Customer sees full price
+            const itemTotal = sale.soldPrice || 0;
             subTotal += itemTotal;
             
             let prodType = sale.category || sale.saleCat;

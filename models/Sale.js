@@ -13,7 +13,7 @@ const SaleSchema = new mongoose.Schema({
   profit: Number,
   profitPercent: Number,
   
-  // --- New: Margin & Deep Entry Tracking ---
+  // --- Margin & Deep Entry Tracking ---
   distributorMargin: { type: Number, default: 0 },
   saleCat: String,
   bottleCat: String,
@@ -22,6 +22,10 @@ const SaleSchema = new mongoose.Schema({
   pouchName: String,
   oilPercent: Number,
   otherCost: Number,
+
+  // --- NEW: Batch & Pre-mix logic ---
+  isFromBatch: { type: Boolean, default: false },
+  sourceBatchId: { type: String, default: null },
   
   // --- Item Level vs Invoice Level ---
   discount: { type: Number, default: 0 }, 
