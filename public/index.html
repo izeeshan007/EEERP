@@ -58,11 +58,16 @@
             <div class="bg-indigo-600 p-1.5 rounded-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             </div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.4</span></h1>
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.5</span></h1>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+            <button onclick="showTab('batches')" class="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">📦 Finished Batches</button>
+            <button onclick="showTab('analytics')" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider mr-2">📊 Analytics</button>
+            
+            <div class="h-6 w-px bg-slate-200"></div>
+
             <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden animate-pulse bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
-            <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition">Logout</button>
+            <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition ml-2">Logout</button>
         </div>
     </div>
 </nav>
@@ -110,10 +115,8 @@
 
     <div class="flex gap-6 border-b mb-6 overflow-x-auto">
         <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Raw Materials</button>
-        <button onclick="showTab('batches')" id="tab-batches" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Finished Batches</button>
         <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales History</button>
         <button onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
-        <button onclick="showTab('analytics')" id="tab-analytics" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Business Analytics</button>
     </div>
 
     <!-- RAW MATERIALS TAB -->
@@ -153,6 +156,7 @@
                             <tr class="text-slate-500 border-b">
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'name')">Name ↕</th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'category')">Category ↕</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('stock', 'supplier')">Brand/Supplier ↕</th>
                                 <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'units')">Qty/Size ↕</th>
                                 <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('stock', 'cost')">Cost ↕</th>
                                 <th class="pb-2 font-semibold text-center sort-header" onclick="setSort('stock', 'status')">Status ↕</th>
@@ -167,6 +171,7 @@
                                         <option>Equipment</option><option>Misc</option>
                                     </select>
                                 </th>
+                                <th class="py-2 pr-2"><input type="text" id="filter-stock-brand" class="filter-input" placeholder="Filter Designer/Supplier..." oninput="renderStockTable()"></th>
                                 <th class="py-2"></th>
                                 <th class="py-2"></th>
                                 <th class="py-2 text-center pl-2">
@@ -190,7 +195,7 @@
         </div>
     </div>
 
-    <!-- FINISHED BATCHES TAB -->
+    <!-- FINISHED BATCHES (Accessible via Top Nav) -->
     <div id="batches" class="tab-content space-y-6">
         <div class="grid lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1 glass-card p-6 rounded-2xl h-fit">
@@ -376,6 +381,7 @@
                                 <th class="pb-2 w-8"></th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'productName')">Product ↕</th>
                                 <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'customerName')">Customer ↕</th>
+                                <th class="pb-2 font-semibold sort-header" onclick="setSort('sales', 'referenceSource')">Reference ↕</th>
                                 <th class="pb-2 font-semibold text-center">Status</th>
                                 <th class="pb-2 font-semibold text-right sort-header" onclick="setSort('sales', 'soldPrice')">Net Amount ↕</th>
                                 <th class="pb-2 font-semibold text-right text-emerald-600">
@@ -388,6 +394,7 @@
                                 <th class="py-2"></th>
                                 <th class="py-2 pr-2"><input type="text" id="filter-sales-product" class="filter-input" placeholder="Filter product..." oninput="renderSalesTable()"></th>
                                 <th class="py-2 pr-2"><input type="text" id="filter-sales-customer" class="filter-input" placeholder="Filter customer..." oninput="renderSalesTable()"></th>
+                                <th class="py-2 pr-2"><input type="text" id="filter-sales-reference" class="filter-input" placeholder="Filter reference..." oninput="renderSalesTable()"></th>
                                 <th class="py-2 pr-2">
                                     <select id="filter-sales-status" class="filter-input" onchange="renderSalesTable()">
                                         <option value="all">All Status</option>
@@ -447,7 +454,7 @@
         </div>
     </div>
 
-    <!-- ANALYTICS TAB -->
+    <!-- ANALYTICS TAB (Accessible via Top Nav) -->
     <div id="analytics" class="tab-content space-y-6">
         <div class="glass-card p-6 rounded-2xl">
             <div class="flex flex-wrap gap-4 items-center mb-6">
@@ -687,8 +694,14 @@
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        
         document.getElementById(tabId).classList.add('active');
-        document.getElementById('tab-' + tabId).classList.add('active');
+        
+        // Highlight tab only if it belongs to the main 3 navigation links
+        const activeNavBtn = document.getElementById('tab-' + tabId);
+        if (activeNavBtn) {
+            activeNavBtn.classList.add('active');
+        }
     }
 
     async function checkAuth(){
@@ -923,6 +936,7 @@
         if(table === 'stock') {
             document.getElementById('filter-stock-name').value = '';
             document.getElementById('filter-stock-category').value = '';
+            document.getElementById('filter-stock-brand').value = '';
             const statusFilterElem = document.getElementById('filter-stock-status');
             if(statusFilterElem) statusFilterElem.value = '';
             renderStockTable();
@@ -935,6 +949,7 @@
         } else {
             document.getElementById('filter-sales-product').value = '';
             document.getElementById('filter-sales-customer').value = '';
+            document.getElementById('filter-sales-reference').value = '';
             document.getElementById('filter-sales-status').value = 'all';
             renderSalesTable();
         }
@@ -943,6 +958,7 @@
     function renderStockTable() {
         const nameFilter = document.getElementById('filter-stock-name').value.toLowerCase();
         const catFilter = document.getElementById('filter-stock-category').value;
+        const brandFilter = document.getElementById('filter-stock-brand').value.toLowerCase();
         const statusElem = document.getElementById('filter-stock-status');
         const statusFilter = statusElem ? statusElem.value : "";
 
@@ -951,9 +967,15 @@
             const isNotBatch = s.category !== "Finished Product";
             const nameMatch = (s.name || "").toLowerCase().includes(nameFilter);
             const catMatch = (catFilter === "" || s.category === catFilter);
+            
+            const brandMatch = brandFilter === "" || 
+                               (s.designerName || "").toLowerCase().includes(brandFilter) || 
+                               (s.supplier || "").toLowerCase().includes(brandFilter);
+
             const sStatus = s.status || "Active";
             const statusMatch = (statusFilter === "" || sStatus === statusFilter);
-            return isNotBatch && nameMatch && catMatch && statusMatch;
+            
+            return isNotBatch && nameMatch && catMatch && brandMatch && statusMatch;
         });
 
         filtered.sort((a,b) => {
@@ -968,6 +990,7 @@
             <tr onclick='openModal("stock",${JSON.stringify(s).replace(/"/g,"&quot;")})'>
                 <td class="py-3 font-medium ${isLoss ? 'text-red-500 line-through' : ''}">${s.name||""}</td>
                 <td class="py-3 text-slate-500">${s.category||""}</td>
+                <td class="py-3 text-slate-500 text-xs">${[s.designerName, s.supplier].filter(Boolean).join(" / ") || "-"}</td>
                 <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + (s.category === 'Aroma Chemical' ? 'g' : 'ml') : s.units + ' U'}</td>
                 <td class="py-3 text-right font-bold ${isLoss ? 'text-red-500' : ''}">₹${s.cost||0}</td>
                 <td class="py-3 text-center text-xs font-bold ${s.status === 'Active' || !s.status ? 'text-emerald-500' : 'text-red-500'}">${s.status || 'Active'}</td>
@@ -988,8 +1011,10 @@
             const isBatch = s.category === "Finished Product";
             const nameMatch = (s.name || "").toLowerCase().includes(nameFilter);
             const typeMatch = (typeFilter === "" || s.type === typeFilter);
+            
             const sStatus = s.status || "Active";
             const statusMatch = (statusFilter === "" || sStatus === statusFilter);
+            
             return isBatch && nameMatch && typeMatch && statusMatch;
         });
 
@@ -1017,16 +1042,21 @@
     function renderSalesTable() {
         const prodFilter = document.getElementById('filter-sales-product').value.toLowerCase();
         const custFilter = document.getElementById('filter-sales-customer').value.toLowerCase();
+        const refFilter = document.getElementById('filter-sales-reference').value.toLowerCase();
         const statusFilter = document.getElementById('filter-sales-status').value;
         const showProfit = document.getElementById('showTableProfit')?.checked;
 
         let filtered = salesCache.filter(s => {
             const fullName = formatProductName(s).toLowerCase();
             const matchesSearch = fullName.includes(prodFilter) && (s.customerName || "").toLowerCase().includes(custFilter);
+            
+            const refMatch = refFilter === "" || (s.referenceSource || "").toLowerCase().includes(refFilter);
+
             let matchesStatus = true;
             if(statusFilter === 'undelivered') matchesStatus = s.isDelivered === false;
             if(statusFilter === 'unpaid') matchesStatus = s.isPaid === false;
-            return matchesSearch && matchesStatus;
+            
+            return matchesSearch && matchesStatus && refMatch;
         });
 
         filtered.sort((a,b) => {
@@ -1053,6 +1083,7 @@
                     ${item.isFromBatch ? `<span class="ml-2 text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">From Batch</span>` : ''}
                 </td>
                 <td class="py-3 text-slate-500">${item.customerName||""}</td>
+                <td class="py-3 text-slate-500 text-xs">${item.referenceSource||"-"}</td>
                 <td class="py-3 text-center">
                     <div class="flex items-center justify-center gap-1">
                         <span class="w-2 h-2 rounded-full ${item.isDelivered ? 'bg-emerald-500' : 'bg-orange-500'}"></span>
@@ -1969,6 +2000,7 @@
             generatePDFText(doc, items, currentInvoiceGroup, true);
         };
         img.onerror = function() {
+            console.error('Failed to load logo image');
             generatePDFText(doc, items, currentInvoiceGroup, false);
         };
     }
