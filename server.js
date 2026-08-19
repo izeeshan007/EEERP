@@ -30,14 +30,25 @@ const allowedOrigins = String(process.env.FRONTEND_URLS || process.env.FRONTEND_
  .map(value => value.trim().replace(/\/$/, ""))
  .filter(Boolean);
 allowedOrigins.push("http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173");
-app.use(cors({
- origin(origin, callback) {
- if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) return callback(null, true);
-  if (/^http:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(origin)) return callback(null, true);
-  return callback(new Error(`CORS blocked: ${origin}`));
- },
- credentials: true
-}));
+const credentialedCors = cors({ origin: true, credentials: true });
+app.use((req, res, next) => {
+ const origin = String(req.get("Origin") || "").trim().replace(/\/$/, "");
+ if (!origin) return next();
+ const forwardedHost = String(req.get("x-forwarded-host") || "").split(",")[0].trim();
+ const requestHost = (forwardedHost || String(req.get("host") || "")).toLowerCase();
+ let sameOrigin = false;
+ try {
+  sameOrigin = new URL(origin).host.toLowerCase() === requestHost;
+ } catch {}
+ const allowed = sameOrigin ||
+  allowedOrigins.includes(origin) ||
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+$/i.test(origin);
+ if (!allowed) {
+  console.warn(`CORS blocked: ${origin}`);
+  return res.status(403).json({ success: false, message: "Origin is not allowed." });
+ }
+ return credentialedCors(req, res, next);
+});
 app.use(express.json());
 
 if (isProduction) app.set("trust proxy", 1);
