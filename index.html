@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Perfume ERP PRO</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+.card{
+ background:white;
+ border-radius:16px;
+ padding:16px;
+ box-shadow:0 2px 10px rgba(0,0,0,.08);
+}
+.input{
+ width:100%;
+ padding:10px;
+ border:1px solid #ddd;
+ border-radius:10px;
+}
+.modal{
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.5);
+ display:none;
+ justify-content:center;
+ align-items:center;
+}
+.modal-box{
+ background:white;
+ padding:20px;
+ border-radius:12px;
+ width:95%;
+ max-width:450px;
+}
+tr:hover{background:#f9fafb;cursor:pointer}
+</style>
+</head>
+
+<body class="bg-gray-100 p-4">
+
+<h1 class="text-3xl font-bold mb-5">Perfume ERP PRO</h1>
+
+<!-- DASHBOARD -->
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+
+<div class="card">Investment <p id="investment"></p></div>
+<div class="card">Sales <p id="sales"></p></div>
+<div class="card">Profit <p id="profit"></p></div>
+<div class="card">ROI <p id="roi"></p></div>
+
+</div>
+
+<!-- STOCK ENTRY -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-3">Stock Entry</h2>
+
+<select id="category" onchange="changeFields()" class="input mb-2">
+<option>Attar Oil</option>
+<option>Raw Perfume</option>
+<option>Bottle</option>
+<option>Pouch</option>
+<option>Box</option>
+<option>Aroma Chemical</option>
+<option>Equipment</option>
+<option>Misc</option>
+</select>
+
+<div id="dynamicFields" class="grid gap-2"></div>
+
+<button onclick="addStock()" class="bg-blue-600 text-white px-4 py-2 rounded mt-3">
+Add Stock
+</button>
+
+<p id="stockMsg" class="text-green-600 mt-2"></p>
+
+</div>
+
+<!-- ================= SALES ENTRY ================= -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-3">Sales Entry (Auto Cost)</h2>
+
+<div class="grid md:grid-cols-3 gap-2">
+
+<!-- PRODUCT TYPE -->
+<select id="saleCat" class="input" onchange="changeSaleMode()">
+<option value="Perfume">Perfume</option>
+<option value="Attar">Attar</option>
+</select>
+
+<!-- PRODUCT NAME (FROM ATTAR OIL STOCK) -->
+<input id="productName"
+list="oilList"
+class="input"
+placeholder="Attar Oil Name"
+oninput="calculateMfgCost()">
+
+<datalist id="oilList"></datalist>
+
+<!-- SIZE -->
+<select id="saleSize" class="input"
+onchange="calculateMfgCost()"></select>
+
+<!-- OIL % (ONLY PERFUME) -->
+<input id="oilPercent"
+class="input"
+type="number"
+value="45"
+placeholder="Oil %"
+oninput="calculateMfgCost()">
+
+<!-- BOTTLE CATEGORY -->
+<select id="bottleCat"
+class="input"
+onchange="calculateMfgCost()">
+
+<option value="">Bottle Category</option>
+<option>ECO</option>
+<option>Premium</option>
+
+</select>
+
+<!-- BOX CATEGORY -->
+<select id="boxCat"
+class="input"
+onchange="calculateMfgCost()">
+
+<option value="">Box Category (Optional)</option>
+<option>ECO</option>
+<option>Premium</option>
+
+</select>
+
+<!-- OTHER COST -->
+<input id="otherCost"
+type="number"
+class="input"
+placeholder="Other Cost"
+oninput="calculateMfgCost()">
+
+<!-- AUTO MFG COST -->
+<input id="mfg"
+class="input bg-gray-100 font-bold"
+
+placeholder="Auto Manufacturing Cost">
+
+<!-- SOLD -->
+<input id="sold"
+class="input"
+type="number"
+placeholder="Sold Price">
+
+<input id="customer" class="input" placeholder="Customer">
+<input id="reference" class="input" placeholder="Reference">
+
+<input id="date" type="date" class="input">
+
+</div>
+
+<button onclick="addSale()"
+class="bg-green-600 text-white px-4 py-2 rounded mt-3">
+Add Sale
+</button>
+
+</div>
+
+<!-- STOCK TABLE -->
+
+<div class="card mb-6">
+
+<h2 class="text-xl font-bold mb-2">Stock Records</h2>
+
+<input id="stockFilter" class="input mb-2" placeholder="Search" oninput="loadAll()">
+<div class="font-bold mb-2 text-blue-700">
+Subtotal Stock: ₹ <span id="stockTotal">0</span>
+</div>
+<table class="w-full">
+<thead><tr class="bg-gray-100"><th>Name</th><th>Category</th><th>Units</th><th>Cost</th></tr></thead>
+<tbody id="stockTable"></tbody>
+</table>
+
+</div>
+
+<!-- SALES TABLE -->
+
+<div class="card">
+
+<h2 class="text-xl font-bold mb-2">Sales Records</h2>
+
+<input id="salesFilter" class="input mb-2" placeholder="Search" oninput="loadAll()">
+<div class="font-bold mb-2 text-green-700">
+Subtotal Sales: ₹ <span id="salesTotal">0</span>
+</div>
+<table class="w-full">
+<thead><tr class="bg-gray-100"><th>Product</th><th>Customer</th><th>Profit</th></tr></thead>
+<tbody id="salesTable"></tbody>
+</table>
+
+</div>
+
+<!-- ================= ANALYTICS ================= -->
+
+<div class="card mt-6">
+
+<h2 class="text-xl font-bold mb-3">
+Monthly Analytics
+</h2>
+
+<div class="overflow-auto mb-4">
+<table class="w-full text-sm">
+<thead class="bg-gray-100">
+<tr>
+<th>Month</th>
+<th>Investment</th>
+<th>Sales</th>
+<th>Profit</th>
+<th>ROI</th>
+</tr>
+</thead>
+
+<tbody id="monthTable"></tbody>
+</table>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4">
+
+<div class="card">
+<h3 class="font-bold mb-2">Sales vs Investment</h3>
+<canvas id="salesChartCanvas"></canvas>
+</div>
+
+<div class="card">
+<h3 class="font-bold mb-2">Break-even Curve</h3>
+<canvas id="breakChartCanvas"></canvas>
+</div>
+
+</div>
+
+</div>
+
+<!-- ChartJS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- MODAL -->
+
+<div id="modal" class="modal">
+<div class="modal-box">
+
+<h2 id="modalTitle"></h2>
+<div id="modalBody" class="grid gap-2"></div>
+
+<div class="flex gap-2 mt-3">
+<button onclick="saveModal()" class="bg-blue-600 text-white px-3 py-2 rounded">Update</button>
+<button onclick="deleteModal()" class="bg-red-600 text-white px-3 py-2 rounded">Delete</button>
+<button onclick="closeModal()" class="bg-gray-500 text-white px-3 py-2 rounded ml-auto">Close</button>
+</div>
+
+</div>
+</div>
+
+<datalist id="nameList"></datalist>
+<datalist id="designerList"></datalist>
+<datalist id="supplierList"></datalist>
+
+<script>
+
+date.value=new Date().toISOString().split("T")[0];
+
+let stockCache=[];
+let editType="",editId="";
+let salesChart=null;
+let breakChart=null;
+
+/* ================= STOCK DYNAMIC ================= */
+
+function changeFields(){
+
+ const c=category.value;
+ let html=`<input id="name" list="nameList" class="input"
+ placeholder="Name" oninput="autoFillStock()">`;
+
+ if(c==="Attar Oil"){
+  html+=`
+  <input id="designerName" list="designerList"
+  class="input" placeholder="Designer">
+
+  <input id="supplier" list="supplierList"
+  class="input" placeholder="Supplier">
+
+  <select id="size" class="input">
+   <option value="25">25 ml</option>
+   <option value="50">50 ml</option>
+   <option value="100">100 ml</option>
+   <option value="250">250 ml</option>
+   <option value="500">500 ml</option>
+   <option value="1000">1000 ml</option>
+  </select>`;
+ }
+
+ if(["Bottle","Pouch","Box"].includes(c)){
+  html+=`
+  <select id="subCategory" class="input">
+   <option value="">NA</option>
+   <option>ECO</option>
+   <option>Moderate</option>
+   <option>Premium</option>
+  </select>
+
+  <select id="type" class="input">
+   <option>Perfume</option>
+   <option>Attar</option>
+  </select>`;
+ }
+
+ html+=`
+ <input id="units" type="number" class="input" placeholder="Units">
+ <input id="cost" type="number" class="input" placeholder="Cost">`;
+
+ dynamicFields.innerHTML=html;
+}
+changeFields();
+
+/* ================= DROPDOWNS ================= */
+
+async function loadDropdowns(){
+
+ const stock=await (await fetch("/api/stock")).json();
+ stockCache=stock;
+
+ nameList.innerHTML=[...new Set(stock.map(s=>s.name))]
+ .filter(Boolean)
+ .map(v=>`<option value="${v}">`).join("");
+
+ designerList.innerHTML=[...new Set(stock.map(s=>s.designerName))]
+ .filter(Boolean)
+ .map(v=>`<option value="${v}">`).join("");
+
+ supplierList.innerHTML=[...new Set(stock.map(s=>s.supplier))]
+ .filter(Boolean)
+ .map(v=>`<option value="${v}">`).join("");
+
+ oilList.innerHTML=stock
+ .filter(s=>s.category==="Attar Oil")
+ .map(o=>`<option value="${o.name}">`).join("");
+
+}
+
+/* ================= AUTO FILL ================= */
+
+function autoFillStock(){
+
+ const f=stockCache.find(s=>s.name===name.value);
+ if(!f) return;
+
+ designerName && (designerName.value=f.designerName||"");
+ supplier && (supplier.value=f.supplier||"");
+ size && (size.value=f.size_ml||"");
+}
+
+/* ================= COST ================= */
+
+function calculateMfgCost(){
+
+ const oil=stockCache.find(s=>s.name===productName.value);
+ if(!oil) return;
+
+ const qty=Number(saleSize.value||0);
+ const oilCost=oil.pricePerUnit||0;
+
+ mfg.value=(oilCost*qty).toFixed(2);
+}
+
+/* ================= ADD ================= */
+
+async function addStock(){
+
+ const body={
+ category:category.value,
+ name:document.getElementById("name")?.value||"",
+ designerName:document.getElementById("designerName")?.value||"",
+ supplier:document.getElementById("supplier")?.value||"",
+ subCategory:document.getElementById("subCategory")?.value||"",
+ type:document.getElementById("type")?.value||"",
+ size_ml:Number(document.getElementById("size")?.value||0),
+ units:Number(document.getElementById("units")?.value||0),
+ cost:Number(document.getElementById("cost")?.value||0)
+ };
+
+ await fetch("/api/stock",{
+ method:"POST",
+ headers:{'Content-Type':'application/json'},
+ body:JSON.stringify(body)
+ });
+
+ loadAll();
+ loadDropdowns();
+}
+
+async function addSale(){
+
+ await fetch("/api/sales",{
+ method:"POST",
+ headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({
+  productName:productName.value,
+  customerName:customer.value,
+  referenceSource:reference.value,
+  manufacturingCost:Number(mfg.value||0),
+  soldPrice:Number(sold.value||0),
+  saleDate:date.value
+ })
+ });
+
+ loadAll();
+}
+
+/* ================= ANALYTICS ================= */
+
+function buildAnalytics(stock,salesData){
+
+ const months={};
+
+ stock.forEach(s=>{
+  const d=new Date(s._id.substring(0,8)*1000);
+  const key=d.toLocaleString("default",{month:"short",year:"numeric"});
+  if(!months[key]) months[key]={investment:0,sales:0,profit:0};
+  months[key].investment+=Number(s.cost||0);
+ });
+
+ salesData.forEach(s=>{
+  const d=new Date(s.saleDate||Date.now());
+  const key=d.toLocaleString("default",{month:"short",year:"numeric"});
+  if(!months[key]) months[key]={investment:0,sales:0,profit:0};
+  months[key].sales+=Number(s.soldPrice||0);
+  months[key].profit+=Number(s.profit||0);
+ });
+
+ const labels=Object.keys(months);
+
+ monthTable.innerHTML=labels.map(m=>{
+ const x=months[m];
+ const roi=x.investment?x.sales/x.investment:0;
+ return `<tr>
+ <td>${m}</td>
+ <td>${x.investment.toFixed(2)}</td>
+ <td>${x.sales.toFixed(2)}</td>
+ <td>${x.profit.toFixed(2)}</td>
+ <td>${roi.toFixed(2)}</td>
+ </tr>`;
+ }).join("");
+
+ if(salesChart) salesChart.destroy();
+ salesChart=new Chart(salesChartCanvas,{
+ type:"bar",
+ data:{labels,
+ datasets:[
+ {label:"Investment",data:labels.map(m=>months[m].investment)},
+ {label:"Sales",data:labels.map(m=>months[m].sales)}
+ ]}});
+ 
+ let ci=0,cs=0,inv=[],sal=[];
+ labels.forEach(m=>{
+  ci+=months[m].investment;
+  cs+=months[m].sales;
+  inv.push(ci);
+  sal.push(cs);
+ });
+
+ if(breakChart) breakChart.destroy();
+ breakChart=new Chart(breakChartCanvas,{
+ type:"line",
+ data:{labels,
+ datasets:[
+ {label:"Cumulative Investment",data:inv},
+ {label:"Cumulative Sales",data:sal}
+ ]}});
+}
+
+/* ================= LOAD ================= */
+
+async function loadAll(){
+
+ const stock=await (await fetch("/api/stock")).json();
+ const salesData=await (await fetch("/api/sales")).json();
+ const dash=await (await fetch("/api/dashboard")).json();
+
+ investment.innerText=dash.totalInvestment.toFixed(2);
+ document.getElementById("sales").innerText=dash.totalSales.toFixed(2);
+ profit.innerText=dash.totalProfit.toFixed(2);
+ roi.innerText=dash.roi.toFixed(2);
+
+ /* STOCK FILTER */
+ const sf=stockFilter.value?.toLowerCase()||"";
+ const fStock=stock.filter(s=>(s.name||"").toLowerCase().includes(sf));
+
+ stockTable.innerHTML=fStock.map(s=>`
+ <tr>
+ <td>${s.name||""}</td>
+ <td>${s.category||""}</td>
+ <td>${s.units||0}</td>
+ <td>${s.cost||0}</td>
+ </tr>`).join("");
+
+ stockTotal.innerText=fStock.reduce((a,b)=>a+(b.cost||0),0).toFixed(2);
+
+ /* SALES FILTER */
+ const salef=salesFilter.value?.toLowerCase()||"";
+ const fSales=salesData.filter(s=>(s.productName||"").toLowerCase().includes(salef));
+
+ salesTable.innerHTML=fSales.map(s=>`
+ <tr>
+ <td>${s.productName||""}</td>
+ <td>${s.customerName||""}</td>
+ <td>${s.profit?.toFixed(2)||0}</td>
+ </tr>`).join("");
+
+ salesTotal.innerText=fSales.reduce((a,b)=>a+(b.soldPrice||0),0).toFixed(2);
+
+ buildAnalytics(stock,salesData);
+}
+
+/* INIT */
+loadDropdowns();
+loadAll();
+
+</script>
+</body>
+</html>
