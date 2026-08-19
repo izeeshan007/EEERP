@@ -169,6 +169,7 @@ app.get("/api/health", (req, res) => {
   service: "eeerp",
   port: PORT,
   database: databaseState,
+  sessionStore: isProduction ? (productionSessionStore ? "mongodb" : "unconfigured") : "memory",
   error: connected ? undefined : databaseError
  });
 });
