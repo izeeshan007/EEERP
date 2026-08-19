@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 const session = require("express-session");
+const MongoStore = require("connect-mongo");
 const dns = require("dns").promises;
 const { execFile } = require("child_process");
 const { promisify } = require("util");
@@ -40,10 +41,26 @@ app.use(express.json());
 
 if (isProduction) app.set("trust proxy", 1);
 
+const sessionMongoUri = String(process.env.MONGO_DIRECT_URI || process.env.MONGO_URI || "").trim();
+let productionSessionStore;
+if (isProduction && sessionMongoUri) {
+ productionSessionStore = MongoStore.create({
+  mongoUrl: sessionMongoUri,
+  collectionName: "eeerp_sessions",
+  ttl: 60 * 60 * 12,
+  autoRemove: "native",
+  touchAfter: 60 * 60
+ });
+ productionSessionStore.on("error", error => {
+  console.error("EEERP session store error:", error);
+ });
+}
+
 app.use(session({
  // Keep the middleware operational long enough to return a useful JSON
  // configuration error instead of Express' HTML 500 page.
  secret: sessionSecret || "eeerp-invalid-production-configuration",
+ store: productionSessionStore,
  resave: false,
  saveUninitialized: false,
  cookie: {
@@ -375,11 +392,23 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
 app.post("/api/login", (req,res)=>{
  const { username, password } = req.body;
  if(
-  username === process.env.ADMIN_USER &&
-  password === process.env.ADMIN_PASS
+ username === process.env.ADMIN_USER &&
+ password === process.env.ADMIN_PASS
  ){
-  req.session.authenticated = true;
-  return res.json({success:true});
+  return req.session.regenerate(regenerateError => {
+   if (regenerateError) {
+    console.error("EEERP login session regeneration failed:", regenerateError);
+    return res.status(500).json({success:false, message:"Could not start the admin session."});
+   }
+   req.session.authenticated = true;
+   req.session.save(saveError => {
+    if (saveError) {
+     console.error("EEERP login session save failed:", saveError);
+     return res.status(500).json({success:false, message:"Could not save the admin session."});
+    }
+    return res.json({success:true});
+   });
+  });
  }
  res.json({success:false, message:"Invalid credentials"});
 });
