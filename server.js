@@ -16,6 +16,7 @@ const Dealer = require("./models/Dealer");
 const app = express();
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 3000);
+const isMainModule = require.main === module;
 const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
 const sessionSecret = String(process.env.SESSION_SECRET || (isProduction ? "" : "eeerp-local-session-secret-change-me"));
 
@@ -55,7 +56,7 @@ if (isProduction) app.set("trust proxy", 1);
 
 const sessionMongoUri = String(process.env.MONGO_DIRECT_URI || process.env.MONGO_URI || "").trim();
 let productionSessionStore;
-if (isProduction && sessionMongoUri) {
+if (isMainModule && isProduction && sessionMongoUri) {
  productionSessionStore = MongoStore.create({
   mongoUrl: sessionMongoUri,
   collectionName: "eeerp_sessions",
@@ -194,6 +195,96 @@ app.use("/api/integrations", requireDatabase);
 const money = value => Math.round((Number(value) || 0) * 100) / 100;
 const isAcquisitionSale = sale => Boolean(sale?.isAcquisitionCost) || Number(sale?.soldPrice || 0) === 0;
 const normalizeParty = value => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+const normalizeCostText = value => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function averageStockUnitCost(stock, predicate) {
+ const rows = stock.filter(predicate);
+ if (!rows.length) return 0;
+ let totalCost = 0;
+ let totalQuantity = 0;
+ for (const row of rows) {
+  totalCost += Number(row.cost || 0);
+  const liquid = ["attar oil", "raw perfume", "aroma chemical", "finished product"].includes(normalizeCostText(row.category));
+  const units = Math.max(1, Number(row.units || 1));
+  totalQuantity += liquid && Number(row.size_ml) > 0 ? Number(row.size_ml) * units : units;
+ }
+ return totalQuantity > 0 ? totalCost / totalQuantity : 0;
+}
+
+function packagingSizeToken(sizeMl) {
+ if (sizeMl <= 20) return String(sizeMl);
+ if (sizeMl <= 50) return "30 50";
+ return "100";
+}
+
+function calculateWebsiteManufacturingCost(item, stock = []) {
+ const variantLabel = String(item.size || item.variantLabel || item.variantKey || "");
+ const sizeMl = Number(variantLabel.match(/[\d.]+/)?.[0] || 0);
+ const qty = Math.max(1, Number(item.qty || item.quantity || 1));
+ const category = normalizeCostText(item.category || item.itemType);
+ const isAttar = category.includes("attar");
+ const isGift = /gift/i.test(variantLabel) || Boolean(item.freeGift);
+ const productName = normalizeCostText(item.name);
+ const activeStock = stock.filter(row => normalizeCostText(row.status || "active") === "active");
+
+ const finishedBatch = activeStock.find(row =>
+  normalizeCostText(row.category) === "finished product" &&
+  normalizeCostText(row.name) === productName && Number(row.size_ml) > 0
+ );
+ let juiceCost = 0;
+ let oilPercent = 0;
+ if (finishedBatch) {
+  juiceCost = Number(finishedBatch.pricePerUnit || 0) * sizeMl;
+  oilPercent = Number(finishedBatch.oilPercent || 0);
+ } else {
+  const oilCostPerMl = averageStockUnitCost(activeStock, row =>
+   ["attar oil", "raw perfume"].includes(normalizeCostText(row.category)) &&
+   normalizeCostText(row.name) === productName
+  );
+  if (isAttar) {
+   oilPercent = 100;
+   juiceCost = oilCostPerMl * sizeMl;
+  } else {
+   oilPercent = Number(process.env.DEFAULT_PERFUME_OIL_PERCENT || 45);
+   const ethanolCostPerMl = averageStockUnitCost(activeStock, row => normalizeCostText(row.name).includes("ethanol"));
+   const oilMl = sizeMl * oilPercent / 100;
+   juiceCost = (oilMl * oilCostPerMl) + ((sizeMl - oilMl) * ethanolCostPerMl);
+  }
+ }
+
+ const bottleCost = averageStockUnitCost(activeStock, row =>
+  normalizeCostText(row.category) === "bottle" &&
+  normalizeCostText(row.subCategory) === "moderate" &&
+  Number(row.size_ml) === sizeMl
+ );
+ const sizeToken = packagingSizeToken(sizeMl);
+ const matchingBoxes = activeStock.filter(row => {
+  if (normalizeCostText(row.category) !== "box") return false;
+  const searchable = normalizeCostText(`${row.name} ${row.type} ${row.subCategory}`).replace(/\//g, " ");
+  const sizeMatches = sizeToken === "30 50"
+   ? (searchable.includes("30 50") || (searchable.includes("30") && searchable.includes("50")))
+   : searchable.includes(sizeToken);
+  const eco = searchable.includes("eco");
+  return sizeMatches && (isGift ? !eco : eco);
+ });
+ const boxCost = averageStockUnitCost(matchingBoxes, () => true);
+ const miscellaneousCost = isGift ? 30 : 5;
+ const perUnit = juiceCost + bottleCost + boxCost + miscellaneousCost;
+ return {
+  total: money(perUnit * qty),
+  perUnit: money(perUnit),
+  juiceCost: money(juiceCost),
+  bottleCost: money(bottleCost),
+  boxCost: money(boxCost),
+  miscellaneousCost,
+  bottleQuality: "Moderate",
+  boxName: matchingBoxes[0]?.name || (isGift ? `${sizeToken} Box` : `${sizeToken} Eco Box`),
+  oilPercent,
+  sizeMl,
+  qty,
+  isGift
+ };
+}
 
 function saleReceivableTotal(sale) {
  const taxable = Math.max(0, Number(sale.soldPrice || 0) - Number(sale.discount || 0));
@@ -332,6 +423,7 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
   const subtotal = Number(order.subtotal || 0);
   const totalDiscount = Number(order.discount || 0);
   const invoiceNumber = String(order.invoiceNumber || orderId);
+  const costingStock = await Stock.find({ status: { $ne: "Dead Stock" } }).lean();
   const operations = items.map((item, index) => {
    const qty = Math.max(1, Number(item.qty || item.quantity || 1));
    const unitPrice = Number(item.price || 0);
@@ -342,6 +434,10 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
    const paid = ["PAID", "PAYMENT_CAPTURED", "DELIVERED"].includes(String(order.paymentStatus || order.status));
    const lineReceivable = Math.max(0, soldPrice - lineDiscount);
    const externalReference = `website:${orderId}:${String(item.lineId || index)}`;
+   const calculatedCost = calculateWebsiteManufacturingCost(item, costingStock);
+   const manufacturingCost = Number(item.manufacturingCost) > 0
+    ? Number(item.manufacturingCost)
+    : calculatedCost.total;
    return {
     updateOne: {
      filter: { externalReference },
@@ -363,10 +459,16 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
       customerEmail: String(order.customer?.email || order.email || ""),
       customerAddress: String(order.customer?.address || order.shippingAddress || ""),
       referenceSource: "Website",
-      manufacturingCost: Number(item.manufacturingCost || 0),
+      manufacturingCost,
       soldPrice,
       discount: lineDiscount,
-      profit: soldPrice - lineDiscount - Number(item.manufacturingCost || 0),
+      profit: soldPrice - lineDiscount - manufacturingCost,
+      saleCat: String(item.category || item.itemType || "Product"),
+      bottleCat: calculatedCost.bottleQuality,
+      bottlePrice: calculatedCost.bottleCost * qty,
+      boxName: calculatedCost.boxName,
+      oilPercent: calculatedCost.oilPercent,
+      otherCost: calculatedCost.miscellaneousCost * qty,
       invoiceNumber,
       invoiceDiscount: totalDiscount,
       couponCode: String(order.couponCode || order.offerCode || ""),
@@ -379,7 +481,12 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
       paymentStatus: paid ? "PAID" : "UNPAID",
       isPaid: paid,
       saleDate: order.createdAt ? new Date(order.createdAt) : new Date(),
-      sourcePayload: { productId: item.productId, variantKey: item.variantKey, freeGift: !!item.freeGift }
+      sourcePayload: {
+       productId: item.productId,
+       variantKey: item.variantKey,
+       freeGift: !!item.freeGift,
+       manufacturingCostBreakdown: calculatedCost
+      }
      } },
      upsert: true
     }
@@ -972,12 +1079,20 @@ app.get("/api/dashboard", requireAuth, async(req,res)=>{
  });
 });
 
-if (require.main === module) {
+if (isMainModule) {
  app.listen(PORT, () => console.log(`EEERP running on http://localhost:${PORT}`));
  connectDatabase();
+ const keepAliveUrl = String(process.env.KEEP_ALIVE_URL || "").trim().replace(/\/$/, "");
+ if (keepAliveUrl) {
+  const timer = setInterval(() => {
+   fetch(`${keepAliveUrl}/api/health`, { signal: AbortSignal.timeout(10_000) })
+    .catch(error => console.warn("EEERP keep-alive check failed:", error.message));
+  }, Math.max(5, Number(process.env.KEEP_ALIVE_MINUTES || 10)) * 60 * 1000);
+  timer.unref();
+ }
 }
 
 module.exports = {
  app,
- finance: { money, isAcquisitionSale, saleReceivableTotal, acquisitionExpense, derivePaymentStatus, prepareSaleAccounting }
+ finance: { money, isAcquisitionSale, saleReceivableTotal, acquisitionExpense, derivePaymentStatus, prepareSaleAccounting, calculateWebsiteManufacturingCost }
 };
