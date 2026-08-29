@@ -48,6 +48,7 @@
             background: #fff;
         }
     </style>
+    <link rel="stylesheet" href="/mobile.css">
 </head>
 
 <body class="bg-slate-50 min-h-screen pb-12">
@@ -68,7 +69,7 @@
             
             <div class="h-6 w-px bg-slate-200"></div>
 
-            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden animate-pulse bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
+            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
             <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition ml-2">Logout</button>
         </div>
     </div>
@@ -788,6 +789,33 @@
     function hideLoading() {
         clearTimeout(loadingTimeout);
         document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+
+    async function fetchWithWarmupRetry(url, options = {}, attempts = 8) {
+        let lastError;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) return response;
+                if (![502, 503, 504].includes(response.status)) {
+                    const error = new Error(`${url} returned ${response.status}`);
+                    error.retryable = false;
+                    throw error;
+                }
+                lastError = new Error(`Server is waking up (${response.status})`);
+            } catch (error) {
+                if (error?.retryable === false) throw error;
+                lastError = error;
+            }
+
+            if (attempt === attempts - 1) break;
+            const delay = Math.min(10000, 1200 * (attempt + 1));
+            showLoading();
+            document.getElementById('loadingIndicator').innerText =
+                `Waking server… retrying in ${Math.ceil(delay / 1000)}s`;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        throw lastError || new Error('The server did not respond');
     }
 
     function showTab(tabId) {
@@ -2107,13 +2135,13 @@
         try {
             showLoading();
             const [stockRes, salesRes, dashRes, dealersRes, dealerFinanceRes, receivablesRes, acquisitionRes] = await Promise.all([
-                fetch("/api/stock"),
-                fetch("/api/sales"),
-                fetch("/api/dashboard"),
-                fetch("/api/dealers"),
-                fetch("/api/dealer-finances"),
-                fetch("/api/receivables"),
-                fetch("/api/acquisition-analytics")
+                fetchWithWarmupRetry("/api/stock"),
+                fetchWithWarmupRetry("/api/sales"),
+                fetchWithWarmupRetry("/api/dashboard"),
+                fetchWithWarmupRetry("/api/dealers"),
+                fetchWithWarmupRetry("/api/dealer-finances"),
+                fetchWithWarmupRetry("/api/receivables"),
+                fetchWithWarmupRetry("/api/acquisition-analytics")
             ]);
 
             const stock = await stockRes.json();
@@ -2179,7 +2207,9 @@
             hideLoading();
         } catch (err) {
             console.error(err);
-            hideLoading();
+            showLoading();
+            document.getElementById('loadingIndicator').innerText =
+                'Server is still waking up. Pull to refresh and try again.';
         }
     }
 

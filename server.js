@@ -175,17 +175,21 @@ function requireDatabase(req, res, next) {
  });
 }
 
-app.get("/api/health", (req, res) => {
+function healthResponse(req, res) {
  const connected = mongoose.connection.readyState === 1;
- res.status(connected ? 200 : 503).json({
+ res.status(200).json({
   success: connected,
+  ready: connected,
   service: "eeerp",
   port: PORT,
   database: databaseState,
   sessionStore: isProduction ? (productionSessionStore ? "mongodb" : "unconfigured") : "memory",
   error: connected ? undefined : databaseError
  });
-});
+}
+
+// Keep Render's health check responsive while MongoDB is waking up.
+app.get(["/health", "/api/health"], healthResponse);
 
 app.use(["/api/stock", "/api/sales", "/api/invoices", "/api/dashboard", "/api/dealers", "/api/customers", "/api/receivables", "/api/dealer-finances", "/api/acquisition-analytics"], requireDatabase);
 app.use("/api/integrations", requireDatabase);
