@@ -53,30 +53,33 @@
 
 <body class="bg-slate-50 min-h-screen pb-12">
 
-<nav class="bg-white border-b sticky top-0 z-40 px-4 py-3 mb-6">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <div class="flex items-center gap-2">
+<nav class="erp-topbar bg-white border-b sticky top-0 z-40 px-4 py-3 mb-6">
+    <div class="erp-topbar-inner max-w-7xl mx-auto flex justify-between items-center">
+        <div class="erp-brand flex items-center gap-2">
             <div class="bg-indigo-600 p-1.5 rounded-lg">
                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             </div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.5</span></h1>
+            <div>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">Perfume ERP <span class="text-indigo-600">V1.5</span></h1>
+                <p class="erp-brand-subtitle">Operations Console</p>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
-            <button onclick="showTab('batches')" class="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">📦 Finished Batches</button>
-            <button onclick="showTab('dealers')" class="text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">🤝 Dealers</button>
-            <button onclick="showTab('acquisition')" class="text-xs font-bold text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 border border-fuchsia-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">🎁 Acquisition</button>
-            <button onclick="showTab('analytics')" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider mr-2">📊 Analytics</button>
+        <div class="erp-module-nav flex items-center gap-3">
+            <button data-tab-target="batches" onclick="showTab('batches')" class="erp-module-button text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">Finished Batches</button>
+            <button data-tab-target="dealers" onclick="showTab('dealers')" class="erp-module-button text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">Dealers</button>
+            <button data-tab-target="acquisition" onclick="showTab('acquisition')" class="erp-module-button text-xs font-bold text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 border border-fuchsia-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">Acquisition</button>
+            <button data-tab-target="analytics" onclick="showTab('analytics')" class="erp-module-button text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg transition shadow-sm uppercase tracking-wider">Analytics</button>
             
-            <div class="h-6 w-px bg-slate-200"></div>
+            <div class="erp-nav-divider h-6 w-px bg-slate-200"></div>
 
             <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
-            <button onclick="logout()" class="text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition ml-2">Logout</button>
+            <button onclick="logout()" class="erp-logout text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition ml-2">Logout</button>
         </div>
     </div>
 </nav>
 
-<main class="max-w-7xl mx-auto px-4">
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+<main class="erp-workspace max-w-7xl mx-auto px-4">
+    <div class="erp-metrics grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
         <div class="glass-card p-4 rounded-2xl border-l-4 border-blue-500">
             <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Investment</p>
             <p id="investment" class="text-lg font-bold text-slate-800 mt-1">₹0</p>
@@ -117,10 +120,10 @@
         </div>
     </div>
 
-    <div class="flex gap-6 border-b mb-6 overflow-x-auto">
-        <button onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Raw Materials</button>
-        <button onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales History</button>
-        <button onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
+    <div class="erp-primary-tabs flex gap-6 border-b mb-6 overflow-x-auto">
+        <button data-tab-target="inventory" onclick="showTab('inventory')" id="tab-inventory" class="nav-link active pb-3 px-1 transition-all whitespace-nowrap">Raw Materials</button>
+        <button data-tab-target="sales-entry" onclick="showTab('sales-entry')" id="tab-sales-entry" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Sales History</button>
+        <button data-tab-target="invoices" onclick="showTab('invoices')" id="tab-invoices" class="nav-link pb-3 px-1 transition-all whitespace-nowrap">Invoices</button>
     </div>
 
     <!-- RAW MATERIALS TAB -->
@@ -821,6 +824,11 @@
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('[data-tab-target]').forEach(button => {
+            const isActive = button.dataset.tabTarget === tabId;
+            button.classList.toggle('erp-active', isActive);
+            button.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
         
         document.getElementById(tabId).classList.add('active');
         
