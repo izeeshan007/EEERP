@@ -1,5 +1,5 @@
 :root{
-  --erp-bg:#f4f7fb;
+  --erp-bg:#f4f6ff;
   --erp-surface:#ffffff;
   --erp-surface-soft:#f8fafc;
   --erp-border:#dfe6ef;
@@ -14,7 +14,7 @@
 }
 
 html{-webkit-text-size-adjust:100%;background:var(--erp-bg);}
-body{background:var(--erp-bg)!important;color:var(--erp-text);}
+body{background:linear-gradient(145deg,#f8faff 0%,#f4f6ff 48%,#fbf7ff 100%)!important;color:var(--erp-text);}
 button,input,select,textarea{font:inherit;}
 button{touch-action:manipulation;}
 
@@ -41,7 +41,12 @@ button{touch-action:manipulation;}
   white-space:nowrap;
 }
 .erp-module-button{width:136px;min-width:136px;box-shadow:none!important;}
-.erp-module-button.erp-active{border-color:var(--erp-primary)!important;color:var(--erp-primary)!important;background:var(--erp-primary-soft)!important;box-shadow:inset 0 -2px 0 var(--erp-primary)!important;}
+.erp-module-button:nth-child(1){--module-accent:#4f46e5;--module-border:#c7d2fe;--module-soft:#eef2ff;--module-shadow:rgba(79,70,229,.2);}
+.erp-module-button:nth-child(2){--module-accent:#b45309;--module-border:#fde68a;--module-soft:#fffbeb;--module-shadow:rgba(217,119,6,.2);}
+.erp-module-button:nth-child(3){--module-accent:#a21caf;--module-border:#f5d0fe;--module-soft:#fdf4ff;--module-shadow:rgba(192,38,211,.18);}
+.erp-module-button:nth-child(4){--module-accent:#047857;--module-border:#a7f3d0;--module-soft:#ecfdf5;--module-shadow:rgba(5,150,105,.18);}
+.erp-module-button{border-color:var(--module-border)!important;color:var(--module-accent)!important;background:var(--module-soft)!important;}
+.erp-module-button:hover,.erp-module-button.erp-active{border-color:var(--module-accent)!important;color:var(--module-accent)!important;background:var(--module-soft)!important;box-shadow:inset 0 -2px 0 var(--module-accent),0 6px 16px var(--module-shadow)!important;}
 .erp-logout{border:1px solid #fecaca;background:#fff7f7;}
 
 .glass-card{border:1px solid var(--erp-border)!important;background:var(--erp-surface)!important;box-shadow:var(--erp-shadow)!important;backdrop-filter:none!important;}
@@ -49,16 +54,28 @@ button{touch-action:manipulation;}
 .clickable-card:hover{border-color:#a5b4fc!important;transform:none!important;}
 
 .erp-metrics .glass-card{display:flex;min-width:0;min-height:108px;flex-direction:column;justify-content:center;padding:16px!important;border-radius:var(--erp-radius)!important;}
+.erp-metrics .glass-card:nth-child(1){border-color:#bfdbfe!important;border-left:4px solid #3b82f6!important;background:linear-gradient(145deg,#fff 25%,#eff6ff 100%)!important;box-shadow:0 10px 26px rgba(59,130,246,.1)!important;}
+.erp-metrics .glass-card:nth-child(2){border-color:#a7f3d0!important;border-left:4px solid #10b981!important;background:linear-gradient(145deg,#fff 25%,#ecfdf5 100%)!important;box-shadow:0 10px 26px rgba(16,185,129,.1)!important;}
+.erp-metrics .glass-card:nth-child(3){border-color:#c7d2fe!important;border-left:4px solid #6366f1!important;background:linear-gradient(145deg,#fff 25%,#eef2ff 100%)!important;box-shadow:0 10px 26px rgba(99,102,241,.1)!important;}
+.erp-metrics .glass-card:nth-child(4){border-color:#fecdd3!important;border-left:4px solid #f43f5e!important;background:linear-gradient(145deg,#fff 25%,#fff1f2 100%)!important;box-shadow:0 10px 26px rgba(244,63,94,.1)!important;}
+.erp-metrics .glass-card:nth-child(5){border-color:#a5f3fc!important;border-left:4px solid #06b6d4!important;background:linear-gradient(145deg,#fff 25%,#ecfeff 100%)!important;box-shadow:0 10px 26px rgba(6,182,212,.1)!important;}
+.erp-metrics .glass-card:nth-child(6){border-color:#fde68a!important;border-left:4px solid #f59e0b!important;background:linear-gradient(145deg,#fff 25%,#fffbeb 100%)!important;box-shadow:0 10px 26px rgba(245,158,11,.1)!important;}
+.erp-metrics .glass-card:nth-child(7){border-color:#fed7aa!important;border-left:4px solid #f97316!important;background:linear-gradient(145deg,#fff 25%,#fff7ed 100%)!important;box-shadow:0 10px 26px rgba(249,115,22,.1)!important;}
+.erp-metrics .glass-card:nth-child(8){border-color:#fecaca!important;border-left:4px solid #ef4444!important;background:linear-gradient(145deg,#fff 25%,#fef2f2 100%)!important;box-shadow:0 10px 26px rgba(239,68,68,.1)!important;}
 .erp-metrics .glass-card p:first-child,.erp-metrics .glass-card>div:first-child p:first-child{color:var(--erp-muted);font-size:9px;line-height:1.3;}
 .erp-metrics [id]{font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 
 .erp-primary-tabs{gap:5px!important;padding:5px;border:1px solid var(--erp-border)!important;border-radius:14px;background:var(--erp-surface);box-shadow:0 4px 14px rgba(15,23,42,.04);}
 .erp-primary-tabs .nav-link{display:inline-flex;min-height:40px;flex:1 0 auto;align-items:center;justify-content:center;padding:0 16px!important;border:0!important;border-radius:10px;color:#475569;font-size:13px;font-weight:700;}
-.erp-primary-tabs .nav-link.active,.erp-primary-tabs .nav-link.erp-active{border:0!important;color:#fff!important;background:var(--erp-primary);box-shadow:0 5px 14px rgba(79,70,229,.22);}
+.erp-primary-tabs .nav-link.active,.erp-primary-tabs .nav-link.erp-active{border:0!important;color:#fff!important;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 5px 14px rgba(79,70,229,.26);}
 
 .tab-content{min-width:0;}
 .tab-content>.grid{gap:20px!important;}
 .tab-content .glass-card{border-radius:var(--erp-radius)!important;}
+#inventory>.grid>.glass-card:first-child,#batches>.grid>.glass-card:first-child{border-top:3px solid #6366f1!important;background:linear-gradient(180deg,#f7f7ff 0,#fff 90px)!important;}
+#sales-entry>.grid>.glass-card:first-child,#analytics>.glass-card{border-top:3px solid #10b981!important;background:linear-gradient(180deg,#f2fdf8 0,#fff 90px)!important;}
+#dealers>.grid>.glass-card:first-child,#invoices>.glass-card{border-top:3px solid #f59e0b!important;background:linear-gradient(180deg,#fffbeb 0,#fff 90px)!important;}
+#acquisition>.glass-card{border-top:3px solid #d946ef!important;background:linear-gradient(180deg,#fdf4ff 0,#fff 90px)!important;}
 .tab-content h2{color:var(--erp-text);font-size:17px;letter-spacing:-.01em;}
 .tab-content label{color:#526176;}
 .tab-content input:not([type="checkbox"]),.tab-content select,.tab-content textarea,.filter-input{min-height:var(--erp-control-height);border:1px solid var(--erp-border-strong)!important;border-radius:10px!important;background:#fff!important;color:var(--erp-text);}
