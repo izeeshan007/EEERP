@@ -186,3 +186,88 @@ button{touch-action:manipulation;}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important;}
 }
+
+/* Sales and invoice workspaces should remain readable without a long sideways drag. */
+#sales-entry .glass-card:has(#salesRecordsTable),#invoices .glass-card:has(#invoicesRecordsTable){padding:16px!important;}
+#salesRecordsTable,#invoicesRecordsTable{width:100%;min-width:0!important;table-layout:fixed;font-size:11px;}
+#salesRecordsTable th,#salesRecordsTable td,#invoicesRecordsTable th,#invoicesRecordsTable td{padding:6px 6px!important;white-space:normal!important;overflow-wrap:anywhere;line-height:1.25;}
+#salesRecordsTable th:nth-child(1){width:34px}#salesRecordsTable th:nth-child(2){width:22%}#salesRecordsTable th:nth-child(3){width:19%}#salesRecordsTable th:nth-child(4){width:16%}#salesRecordsTable th:nth-child(5){width:13%}#salesRecordsTable th:nth-child(6){width:15%}#salesRecordsTable th:nth-child(7){width:15%}
+#invoicesRecordsTable th:nth-child(1){width:21%}#invoicesRecordsTable th:nth-child(2){width:24%}#invoicesRecordsTable th:nth-child(3){width:14%}#invoicesRecordsTable th:nth-child(4){width:14%}#invoicesRecordsTable th:nth-child(5){width:15%}#invoicesRecordsTable th:nth-child(6){width:12%}
+#salesRecordsTable input[type="checkbox"],#invoicesRecordsTable input[type="checkbox"]{width:13px;height:13px;}
+#salesRecordsTable td button,#invoicesRecordsTable td button{min-height:28px!important;padding:4px 7px!important;font-size:10px!important;}
+
+/* Keep every ERP table usable on a phone: horizontal scrolling remains available,
+   while the sticky lead column keeps a deliberate, compact width. */
+@media (max-width:700px){
+  .tab-content .overflow-x-auto{overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}
+  .tab-content table{font-size:11px;}
+  .tab-content th,.tab-content td{vertical-align:middle;}
+  #salesRecordsTable,#invoicesRecordsTable,#stockRecordsTable,#batchRecordsTable{min-width:560px!important;}
+  #salesRecordsTable{min-width:610px!important;}
+  .tab-content table:not(#salesRecordsTable):not(#invoicesRecordsTable):not(#stockRecordsTable):not(#batchRecordsTable){min-width:560px!important;}
+  #salesRecordsTable th:first-child,#salesRecordsTable td:first-child{
+    width:34px!important;min-width:34px!important;max-width:34px!important;
+    padding-left:5px!important;padding-right:5px!important;
+  }
+  #invoicesRecordsTable th:first-child,#invoicesRecordsTable td:first-child{
+    width:100px!important;min-width:100px!important;max-width:100px!important;
+  }
+  #stockRecordsTable th:first-child,#stockRecordsTable td:first-child,
+  #batchRecordsTable th:first-child,#batchRecordsTable td:first-child{
+    width:120px!important;min-width:120px!important;max-width:120px!important;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;
+  }
+  .tab-content table:not(#salesRecordsTable):not(#invoicesRecordsTable):not(#stockRecordsTable):not(#batchRecordsTable) th:first-child,
+  .tab-content table:not(#salesRecordsTable):not(#invoicesRecordsTable):not(#stockRecordsTable):not(#batchRecordsTable) td:first-child{
+    width:120px!important;min-width:120px!important;max-width:120px!important;
+    position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 #e5eaf0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;
+  }
+  #salesRecordsTable th:first-child,#salesRecordsTable td:first-child,
+  #invoicesRecordsTable th:first-child,#invoicesRecordsTable td:first-child{
+    position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 #e5eaf0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;
+  }
+  #salesRecordsTable thead th:first-child,#invoicesRecordsTable thead th:first-child,
+  #stockRecordsTable thead th:first-child,#batchRecordsTable thead th:first-child{
+    z-index:3;background:var(--erp-surface-soft);
+  }
+  .tab-content table:not(#salesRecordsTable):not(#invoicesRecordsTable):not(#stockRecordsTable):not(#batchRecordsTable) thead th:first-child{z-index:3;background:var(--erp-surface-soft);}
+  #salesRecordsTable td:nth-child(5){font-size:10px;text-align:center;}
+}
+
+/* Inventory tables: keep the lead field visible without making it consume
+   the whole phone viewport. Fixed proportions also prevent an empty supplier
+   or status cell from stretching the scroll area unexpectedly. */
+@media (max-width:700px){
+  #inventory .glass-card:has(#stockRecordsTable),#batches .glass-card:has(#batchRecordsTable){padding:12px!important;}
+  #stockRecordsTable,#batchRecordsTable{min-width:520px!important;width:100%;table-layout:fixed;font-size:10px!important;}
+  #stockRecordsTable th,#stockRecordsTable td,#batchRecordsTable th,#batchRecordsTable td{
+    padding:7px 6px!important;white-space:normal!important;overflow-wrap:anywhere;line-height:1.25;
+  }
+  #stockRecordsTable th:nth-child(1){width:18%!important;}
+  #stockRecordsTable th:nth-child(2){width:17%!important;}
+  #stockRecordsTable th:nth-child(3){width:25%!important;}
+  #stockRecordsTable th:nth-child(4){width:15%!important;}
+  #stockRecordsTable th:nth-child(5){width:13%!important;}
+  #stockRecordsTable th:nth-child(6){width:12%!important;}
+  #batchRecordsTable th:nth-child(1){width:27%!important;}
+  #batchRecordsTable th:nth-child(2){width:16%!important;}
+  #batchRecordsTable th:nth-child(3){width:20%!important;}
+  #batchRecordsTable th:nth-child(4){width:19%!important;}
+  #batchRecordsTable th:nth-child(5){width:18%!important;}
+  #stockRecordsTable th:first-child,#stockRecordsTable td:first-child,
+  #batchRecordsTable th:first-child,#batchRecordsTable td:first-child{
+    width:96px!important;min-width:96px!important;max-width:96px!important;
+    position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 #e5eaf0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;
+  }
+  #stockRecordsTable thead th:first-child,#batchRecordsTable thead th:first-child{z-index:3;background:var(--erp-surface-soft);}
+  #stockRecordsTable input,#stockRecordsTable select,#batchRecordsTable input,#batchRecordsTable select{
+    width:100%;min-width:0!important;box-sizing:border-box;padding:7px 6px!important;font-size:13px!important;
+  }
+  #salesRecordsTable{min-width:590px!important;}
+  #invoicesRecordsTable{min-width:520px!important;}
+  #salesRecordsTable th:first-child,#salesRecordsTable td:first-child{width:28px!important;min-width:28px!important;max-width:28px!important;}
+  #invoicesRecordsTable th:first-child,#invoicesRecordsTable td:first-child{width:88px!important;min-width:88px!important;max-width:88px!important;}
+}
