@@ -2333,7 +2333,32 @@
         });
     }
 
-    function printGroupInvoice() {
+    function loadInvoiceLogoDataUrl() {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                if (!context) return resolve(null);
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                const sourceWidth = img.naturalWidth || img.width;
+                const sourceHeight = img.naturalHeight || img.height;
+                if (!sourceWidth || !sourceHeight) return resolve(null);
+                const scale = Math.min(220 / sourceWidth, 220 / sourceHeight);
+                const width = sourceWidth * scale;
+                const height = sourceHeight * scale;
+                context.drawImage(img, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = () => resolve(null);
+            img.src = '/logo.webp';
+        });
+    }
+
+    async function printGroupInvoice() {
         if(!currentInvoiceGroup) return;
         const items = salesCache.filter(s => s.invoiceNumber === currentInvoiceGroup);
         if(items.length === 0) return;
@@ -2343,16 +2368,9 @@
         // Paint the header background before the logo so the logo is not covered.
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, pageWidth, 50, 'F');
-        const img = new Image();
-        img.src = '/logo.webp';
-        img.onload = function() {
-            doc.addImage(img, 'PNG', 15, 12, 28, 28);
-            generatePDFText(doc, items, currentInvoiceGroup, true);
-        };
-        img.onerror = function() {
-            console.error('Failed to load logo image');
-            generatePDFText(doc, items, currentInvoiceGroup, false);
-        };
+        const logoDataUrl = await loadInvoiceLogoDataUrl();
+        if (logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 15, 12, 28, 28);
+        generatePDFText(doc, items, currentInvoiceGroup, Boolean(logoDataUrl));
     }
 
     function generatePDFText(doc, sales, invoiceNumber, hasLogo) {
