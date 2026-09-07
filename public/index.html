@@ -2339,6 +2339,10 @@
         if(items.length === 0) return;
 
         const doc = new window.jspdf.jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        // Paint the header background before the logo so the logo is not covered.
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, pageWidth, 50, 'F');
         const img = new Image();
         img.src = '/logo.webp';
         img.onload = function() {
@@ -2357,9 +2361,6 @@
         const darkBg = [24, 24, 27]; 
         const textDark = [50, 50, 50]; 
         const firstSale = sales[0];
-        
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, pageWidth, 50, 'F');
         
         doc.setFont("times", "bold");
         doc.setFontSize(26);
