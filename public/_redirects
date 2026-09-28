@@ -1,0 +1,3 @@
+# Netlify publishes this directory. Keep ERP API requests on the Netlify URL
+# while proxying them to the Railway Express backend.
+/api/*  https://eeerp.up.railway.app/api/:splat  200!

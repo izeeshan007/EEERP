@@ -11,7 +11,9 @@ const SaleSchema = new mongoose.Schema({
   category: String,
   productName: String,
   designerName: String,
+  // Legacy field retained for compatibility; Bakhoor sizes are grams.
   size_ml: Number,
+  quantityUnit: { type: String, enum: ['g', 'ml'] },
   units: Number,
   customerName: String,
   counterpartyType: { type: String, enum: ["customer", "dealer"], default: "customer", index: true },

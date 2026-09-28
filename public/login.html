@@ -41,13 +41,19 @@
         </div>
     </form>
 
+<script src="/erp-api.js?v=20260923"></script>
 <script>
+    const ERP = ERPClient.createClient({onStatus: message => { document.getElementById('msg').textContent = message; }});
     async function login(event){
         event?.preventDefault();
         const msg = document.getElementById('msg');
+        const button = document.querySelector('#erp-login-form button[type="submit"]');
+        if (button.disabled) return;
+        button.disabled = true;
         msg.innerText = "Signing in...";
         try {
-            const r = await fetch("/api/login",{
+            await ERP.ready();
+            const r = await ERP.request("/api/login",{
                 method:"POST",
                 headers:{'Content-Type':'application/json'},
                 body:JSON.stringify({
@@ -63,7 +69,9 @@
                 msg.innerText = d.message || "Invalid credentials. Please try again.";
             }
         } catch (error) {
-            msg.innerText = "Could not contact EEERP. Check the Render service logs and environment variables.";
+            msg.innerText = error.message || "Could not contact EEERP. Please try again when the service is available.";
+        } finally {
+            button.disabled = false;
         }
     }
 </script>

@@ -72,7 +72,7 @@
             
             <div class="erp-nav-divider h-6 w-px bg-slate-200"></div>
 
-            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Waking Server (~50s)...</span>
+            <span id="loadingIndicator" class="text-xs font-bold text-amber-500 hidden bg-amber-50 px-3 py-1 rounded-full border border-amber-200">Connecting…</span><button id="erp-reconnect" type="button" onclick="reconnectERP()" class="hidden text-sm border rounded px-3 py-1">Retry connection</button>
             <button onclick="logout()" class="erp-logout text-sm font-medium text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition ml-2">Logout</button>
         </div>
     </div>
@@ -139,6 +139,7 @@
                     <select id="category" onchange="changeFields()" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">
                         <option>Attar Oil</option>
                         <option>Raw Perfume</option>
+                        <option>Bakhoor</option>
                         <option>Bottle</option>
                         <option>Pouch</option>
                         <option>Box</option>
@@ -173,7 +174,7 @@
                                 <th class="py-2 pr-2">
                                     <select id="filter-stock-category" class="filter-input" onchange="renderStockTable()">
                                         <option value="">All Materials</option>
-                                        <option>Attar Oil</option><option>Raw Perfume</option><option>Bottle</option>
+                                        <option>Attar Oil</option><option>Raw Perfume</option><option>Bakhoor</option><option>Bottle</option>
                                         <option>Pouch</option><option>Box</option><option>Aroma Chemical</option>
                                         <option>Equipment</option><option>Misc</option>
                                     </select>
@@ -315,6 +316,7 @@
                         <select id="saleCat" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="changeSaleMode()">
                             <option value="Perfume">Perfume</option>
                             <option value="Attar">Attar</option>
+                            <option value="Bakhoor">Bakhoor</option>
                         </select>
                         <select id="saleSize" class="p-2.5 border rounded-xl bg-slate-50 input-focus" onchange="calculateMfgCost()"></select>
                     </div>
@@ -744,6 +746,7 @@
 </div>
 
 <datalist id="oilList"></datalist>
+<datalist id="bakhoorList"></datalist>
 <datalist id="nameList"></datalist>
 <datalist id="designerList"></datalist>
 <datalist id="supplierList"></datalist>
@@ -752,6 +755,9 @@
 <datalist id="batchList"></datalist>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/erp-api.js?v=20260923"></script>
+<script src="/product-units.js?v=20260929"></script>
+<script src="/chart-colors.js?v=20260929"></script>
 
 <script>
     // --- Global State ---
@@ -773,53 +779,60 @@
     let topRevenueChart = null;
     let channelChart = null;
     let inventoryPieChart = null;
+    const analyticsColors = ChartColors.createRegistry();
 
     let stockSort = { key: 'id', dir: -1 };
     let batchSort = { key: 'id', dir: -1 };
     let salesSort = { key: 'id', dir: -1 };
 
     // --- Loading & Sync Functions ---
-    let loadingTimeout;
-    function showLoading() {
-        const ind = document.getElementById('loadingIndicator');
-        ind.innerText = "Syncing...";
-        ind.classList.remove('hidden');
-        loadingTimeout = setTimeout(() => {
-            ind.innerText = "Waking Server (~50s)...";
-        }, 2000);
+    let loadingTimeout, reconnectPromise, loadPromise, lastAuthCheck = 0;
+    function connectionStatus(message) {
+        clearTimeout(loadingTimeout);
+        const indicator = document.getElementById('loadingIndicator');
+        indicator.textContent = message;
+        indicator.classList.remove('hidden');
     }
-    
+    function showLoading() {
+        connectionStatus('Syncing…');
+        loadingTimeout = setTimeout(() => connectionStatus('Waiting for ERP…'), 4000);
+    }
     function hideLoading() {
         clearTimeout(loadingTimeout);
         document.getElementById('loadingIndicator').classList.add('hidden');
+        document.getElementById('erp-reconnect').classList.add('hidden');
     }
-
-    async function fetchWithWarmupRetry(url, options = {}, attempts = 8) {
-        let lastError;
-        for (let attempt = 0; attempt < attempts; attempt += 1) {
+    function connectionFailed(error) {
+        console.error(error);
+        connectionStatus(error.message || 'Connection unavailable. Retry when online.');
+        document.getElementById('erp-reconnect').classList.remove('hidden');
+    }
+    const ERP = ERPClient.createClient({
+        onStatus: connectionStatus,
+        onUnauthorized: () => window.location.replace('/login.html?expired=1')
+    });
+    function fetchWithWarmupRetry(url, options = {}) { return ERP.request(url, options); }
+    function reconnectERP(refresh = true) {
+        if (reconnectPromise) return reconnectPromise;
+        reconnectPromise = (async () => {
             try {
-                const response = await fetch(url, options);
-                if (response.ok) return response;
-                if (![502, 503, 504].includes(response.status)) {
-                    const error = new Error(`${url} returned ${response.status}`);
-                    error.retryable = false;
-                    throw error;
-                }
-                lastError = new Error(`Server is waking up (${response.status})`);
-            } catch (error) {
-                if (error?.retryable === false) throw error;
-                lastError = error;
-            }
-
-            if (attempt === attempts - 1) break;
-            const delay = Math.min(10000, 1200 * (attempt + 1));
-            showLoading();
-            document.getElementById('loadingIndicator').innerText =
-                `Waking server… retrying in ${Math.ceil(delay / 1000)}s`;
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-        throw lastError || new Error('The server did not respond');
+                connectionStatus('Connecting to ERP…');
+                await ERP.ready();
+                if (!await ERP.checkAuth()) return;
+                lastAuthCheck = Date.now();
+                if (refresh || !globalDashData) await loadAll();
+                else hideLoading();
+            } catch (error) { connectionFailed(error); }
+        })().finally(() => { reconnectPromise = null; });
+        return reconnectPromise;
     }
+    window.addEventListener('online', () => reconnectERP(false));
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && Date.now() - lastAuthCheck > 60000) reconnectERP(false);
+    });
+    window.addEventListener('unhandledrejection', event => {
+        connectionFailed(event.reason instanceof Error ? event.reason : new Error('The change could not be confirmed. Check the record before retrying.'));
+    });
 
     function showTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -867,13 +880,6 @@
         return dealerCache.find(dealer => dealer._id === document.getElementById('dealerSelect').value);
     }
 
-    async function checkAuth(){
-        const r = await fetch("/api/check-auth");
-        const d = await r.json();
-        if(!d.authenticated) window.location.href="/login.html";
-    }
-    checkAuth();
-
     document.getElementById('date').value = new Date().toISOString().split("T")[0];
     document.getElementById('batchDate').value = new Date().toISOString().split("T")[0];
 
@@ -895,7 +901,7 @@
     // Format Full Product Name (e.g. Aventus 50 ml Perfume)
     function formatProductName(sale) {
         let name = sale.productName || "Unknown Item";
-        if (sale.size_ml) name += ` ${sale.size_ml} ml`;
+        if (sale.size_ml) name += ` ${ProductUnits.formatSize(sale)}`;
         
         let type = sale.category || sale.saleCat;
         if(!type) type = name.toLowerCase().includes('attar') ? 'Attar' : 'Perfume';
@@ -916,7 +922,7 @@
     function getNormalizedProductName(name) {
         if(!name) return "Unknown";
         let clean = name.toLowerCase().trim();
-        clean = clean.replace(/\b\d+\s*ml\b/g, '').replace(/\b(perfume|attar)\b/g, '').trim();
+        clean = clean.replace(/\b\d+(?:\.\d+)?\s*(?:ml|g|gm|gms|kg)\b/g, '').replace(/\b(perfume|attar|bakhoor)\b/g, '').trim();
         return clean.replace(/\b\w/g, char => char.toUpperCase());
     }
 
@@ -924,7 +930,7 @@
         const nameVal = document.getElementById('name')?.value;
         if(!nameVal) return;
         
-        const match = stockCache.find(s => s.name === nameVal && s.category !== "Finished Product");
+        const match = stockCache.find(s => s.name === nameVal && s.category === category.value);
         if(match) {
             if(document.getElementById('designerName') && match.designerName && !document.getElementById('designerName').value) document.getElementById('designerName').value = match.designerName;
             if(document.getElementById('supplier') && match.supplier && !document.getElementById('supplier').value) document.getElementById('supplier').value = match.supplier;
@@ -1029,6 +1035,13 @@
                 <option value="100" ${data.size_ml==100?'selected':''}>100 ml</option><option value="250" ${data.size_ml==250?'selected':''}>250 ml</option>
                 <option value="500" ${data.size_ml==500?'selected':''}>500 ml</option><option value="1000" ${data.size_ml==1000?'selected':''}>1000 ml</option>
             </select>`;
+        }
+        else if(c === "Bakhoor") {
+            const prefix = data._id ? 'e_' : '';
+            html += `<input id="${prefix}supplier" list="supplierList" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Supplier" value="${data.supplier || ''}">
+                <label class="block text-xs text-slate-500">Weight per pack</label>
+                <select id="${prefix}size" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus">${ProductUnits.stockSizes.map(size => `<option value="${size}" ${Number(data.size_ml) === size ? 'selected' : ''}>${ProductUnits.formatSize({category:'Bakhoor',size_ml:size})}</option>`).join('')}</select>
+                <p class="text-xs text-slate-500">Enter the number of packs below and the total purchase cost for all packs. Weight is stored in grams.</p>`;
         }
         else if(c === "Raw Perfume") {
              html += `<input id="${data._id ? 'e_' : ''}size" type="number" class="w-full p-2.5 border rounded-xl bg-slate-50 input-focus" placeholder="Quantity in ml" value="${data.size_ml || ''}">`;
@@ -1160,7 +1173,7 @@
                 <td class="py-3 font-medium ${isLoss ? 'text-red-500 line-through' : ''}">${s.name||""}</td>
                 <td class="py-3 text-slate-500">${s.category||""}</td>
                 <td class="py-3 text-slate-500 text-xs">${[s.designerName, s.supplier].filter(Boolean).join(" / ") || "-"}</td>
-                <td class="py-3 text-right font-mono">${s.size_ml > 0 ? s.size_ml + (s.category === 'Aroma Chemical' ? 'g' : 'ml') : s.units + ' U'}</td>
+                <td class="py-3 text-right font-mono">${s.size_ml > 0 ? ProductUnits.formatSize(s) : s.units + ' U'}${ProductUnits.isBakhoor(s) ? `<div class="text-xs text-slate-500">${s.units} packs · ${Number(s.size_ml) * Number(s.units)} g total</div>` : ''}</td>
                 <td class="py-3 text-right font-bold ${isLoss ? 'text-red-500' : ''}">₹${s.cost||0}</td>
                 <td class="py-3 text-center text-xs font-bold ${s.status === 'Active' || !s.status ? 'text-emerald-500' : 'text-red-500'}">${s.status || 'Active'}</td>
             </tr>`
@@ -1379,7 +1392,7 @@
         const ids = Array.from(document.querySelectorAll('.sale-checkbox:checked')).map(box => box.value);
         const paymentStatus = document.getElementById('bulkPaymentStatus').value;
         const amountReceived = document.getElementById('bulkPaymentAmount').value;
-        const response = await fetch('/api/sales/bulk-payment', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids, paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? Number(amountReceived) : undefined }) });
+        const response = await ERP.request('/api/sales/bulk-payment', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids, paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? Number(amountReceived) : undefined }) });
         const result = await response.json();
         if (!response.ok || !result.success) return alert(result.message || 'Could not update payments');
         await loadAll();
@@ -1481,7 +1494,7 @@
         if (!currentInvoiceGroup) return;
         const paymentStatus = document.getElementById('invoicePaymentStatus').value;
         const amountReceived = document.getElementById('invoicePaymentAmount').value;
-        const response = await fetch(`/api/invoices/${encodeURIComponent(currentInvoiceGroup)}/payment`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? Number(amountReceived) : undefined }) });
+        const response = await ERP.request(`/api/invoices/${encodeURIComponent(currentInvoiceGroup)}/payment`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? Number(amountReceived) : undefined }) });
         const result = await response.json();
         if (!response.ok || !result.success) return alert(result.message || 'Could not update invoice payment');
         await loadAll();
@@ -1497,7 +1510,7 @@
         if(!confirm("Remove this item from the invoice?")) return;
         
         showLoading();
-        await fetch("/api/sales/remove-from-invoice", {
+        await ERP.request("/api/sales/remove-from-invoice", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ id: itemId })
         });
@@ -1509,7 +1522,7 @@
     async function deleteInvoiceGroup(invNum) {
         if(!confirm(`Are you sure you want to completely ungroup & delete ${invNum}? The individual items will NOT be deleted from Sales History.`)) return;
         showLoading();
-        await fetch(`/api/invoices/${invNum}`, { method: "DELETE" });
+        await ERP.request(`/api/invoices/${invNum}`, { method: "DELETE" });
         await loadAll();
         hideLoading();
     }
@@ -1555,7 +1568,7 @@
         let idsToAdd = Array.from(checkedBoxes).map(cb => cb.value);
 
         showLoading();
-        await fetch("/api/sales/add-to-invoice", {
+        await ERP.request("/api/sales/add-to-invoice", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ids: idsToAdd, invoiceNumber: currentInvoiceGroup })
         });
@@ -1578,7 +1591,7 @@
         const igstPercent = document.getElementById('chk_igst').checked ? (Number(document.getElementById('inv_igst').value) || 0) : 0;
 
         showLoading();
-        await fetch(`/api/invoices/${currentInvoiceGroup}`, {
+        await ERP.request(`/api/invoices/${currentInvoiceGroup}`, {
             method: "PUT", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone })
         });
@@ -1599,7 +1612,7 @@
         if (!confirm("Group these selected items into a single Invoice?")) return;
 
         showLoading();
-        const res = await fetch("/api/sales/merge", {
+        const res = await ERP.request("/api/sales/merge", {
             method: "POST", headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ids: saleIdsToMerge })
         });
@@ -1616,6 +1629,11 @@
 
     // --- Batch Toggle ---
     window.toggleBatchMode = function() {
+        if (saleCat.value === 'Bakhoor') {
+            document.getElementById('isFromBatch').checked = false;
+            changeSaleMode();
+            return;
+        }
         const isBatch = document.getElementById('isFromBatch').checked;
         const oilPctInput = document.getElementById('oilPercent');
         const productInput = document.getElementById('productName');
@@ -1661,14 +1679,15 @@
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div class="space-y-1">
                                 <label class="text-[10px] uppercase font-bold text-slate-500">Type</label>
-                                <select id="e_saleCat" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors">
+                                <select id="e_saleCat" onchange="updateEditSaleSize()" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors">
                                     <option value="Perfume" ${data.category==='Perfume'?'selected':''}>Perfume</option>
                                     <option value="Attar" ${data.category==='Attar'?'selected':''}>Attar</option>
+                                    <option value="Bakhoor" ${data.category==='Bakhoor'?'selected':''}>Bakhoor</option>
                                 </select>
                             </div>
                             <div class="space-y-1">
-                                <label class="text-[10px] uppercase font-bold text-slate-500">Size (ml)</label>
-                                <input id="e_size_ml" type="number" class="w-full p-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-indigo-500 outline-none text-sm transition-colors" value="${data.size_ml||''}">
+                                <label id="e_size_label" class="text-[10px] uppercase font-bold text-slate-500">Size (${ProductUnits.unit(data)})</label>
+                                ${ProductUnits.isBakhoor(data) ? `<select id="e_size_ml" class="w-full p-2 border rounded-lg">${ProductUnits.saleSizes.map(size => `<option value="${size}" ${Number(data.size_ml) === size ? 'selected' : ''}>${size} g</option>`).join('')}</select>` : `<input id="e_size_ml" type="number" step="any" class="w-full p-2 border rounded-lg" value="${data.size_ml||''}">`}
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -1686,7 +1705,7 @@
                     <div class="bg-indigo-50/30 p-4 rounded-xl border border-indigo-100 shadow-sm transition-all hover:shadow-md">
                         <h3 class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-3">Composition Pricing</h3>
                         <div class="grid grid-cols-3 gap-3">
-                            <div class="space-y-1">
+                            <div id="e_oil_fields" class="space-y-1" style="display:${ProductUnits.isBakhoor(data) ? 'none' : 'block'}">
                                 <label class="text-[10px] uppercase font-bold text-indigo-600">Oil %</label>
                                 <input id="e_oilPercent" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.oilPercent||''}">
                             </div>
@@ -1695,7 +1714,7 @@
                                 <input id="e_otherCost" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.otherCost||''}">
                             </div>
                             <div class="space-y-1">
-                                <label class="text-[10px] uppercase font-bold text-indigo-600">Bottle Cost</label>
+                                <label id="e_container_label" class="text-[10px] uppercase font-bold text-indigo-600">${ProductUnits.isBakhoor(data) ? 'Container Cost' : 'Bottle Cost'}</label>
                                 <input id="e_bottlePrice" type="number" class="w-full p-2 border border-indigo-200 rounded-lg bg-white shadow-sm focus:border-indigo-500 outline-none text-sm" value="${data.bottlePrice||''}">
                             </div>
                         </div>
@@ -1761,6 +1780,26 @@
         }
     }
 
+    function updateEditSaleSize() {
+        const category = document.getElementById('e_saleCat').value;
+        const old = document.getElementById('e_size_ml');
+        const value = Number(old.value);
+        const bakhoor = category === 'Bakhoor';
+        const next = document.createElement(bakhoor ? 'select' : 'input');
+        next.id = 'e_size_ml';
+        next.className = old.className;
+        if (bakhoor) {
+            next.innerHTML = ProductUnits.saleSizes.map(size => `<option value="${size}">${size} g</option>`).join('');
+            next.value = ProductUnits.saleSizes.includes(value) ? value : 12.5;
+        } else {
+            next.type = 'number'; next.step = 'any'; next.value = value;
+        }
+        old.replaceWith(next);
+        document.getElementById('e_size_label').textContent = `Size (${ProductUnits.unit({category})})`;
+        document.getElementById('e_oil_fields').style.display = bakhoor ? 'none' : 'block';
+        document.getElementById('e_container_label').textContent = bakhoor ? 'Container Cost' : 'Bottle Cost';
+    }
+
     async function saveModal(){
         showLoading();
         let body = {};
@@ -1798,9 +1837,15 @@
                 isPaid: document.getElementById("e_isPaid").checked
             };
         }
-        await fetch(`/api/${editType}/${editId}`, {
+        const kind = editType === 'stock' ? 'stock' : 'sale';
+        const effective = kind === 'stock' ? { ...stockCache.find(row => row._id === editId), ...body } : body;
+        const validation = ProductUnits.validate(effective, kind);
+        if (validation) { hideLoading(); return alert(validation); }
+        const response = await ERP.request(`/api/${editType}/${editId}`, {
             method: "PUT", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
         });
+        const result = await response.json();
+        if (!response.ok || !result.success) { hideLoading(); return alert(result.message || 'Could not save changes'); }
         closeModal(); 
         await loadAll();
         hideLoading();
@@ -1811,7 +1856,7 @@
     async function deleteModal(){
         if(confirm("Are you sure?")) {
             showLoading();
-            await fetch(`/api/${editType}/${editId}`, {method: "DELETE"});
+            await ERP.request(`/api/${editType}/${editId}`, {method: "DELETE"});
             closeModal(); 
             await loadAll();
             hideLoading();
@@ -1822,6 +1867,7 @@
         designerList.innerHTML = [...new Set(stockCache.map(s=>s.designerName))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
         supplierList.innerHTML = [...new Set(stockCache.map(s=>s.supplier))].filter(Boolean).map(v=>`<option value="${v}">`).join("");
         oilList.innerHTML = [...new Set(stockCache.filter(s=>s.category==="Attar Oil").map(o=>o.name))].map(v=>`<option value="${v}">`).join("");
+        document.getElementById('bakhoorList').replaceChildren(...[...new Set(stockCache.filter(s=>s.category==='Bakhoor' && s.status==='Active').map(s=>s.name))].map(name => { const option = document.createElement('option'); option.value = name; return option; }));
         batchList.innerHTML = stockCache.filter(s => s.category === "Finished Product" && s.size_ml > 0).map(v => `<option value="${v.name}">`).join("");
         boxNameSelect.innerHTML = `<option value="NA">Select Box (NA)</option>` + [...new Set(stockCache.filter(s=>s.category==="Box").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
         pouchNameSelect.innerHTML = `<option value="NA">Select Pouch (NA)</option>` + [...new Set(stockCache.filter(s=>s.category==="Pouch").map(s=>s.name))].map(n=>`<option value="${n}">${n}</option>`).join("");
@@ -1868,7 +1914,7 @@
                 bottlePriceInput.style.backgroundColor = "#fff1f2";
             }
         } else {
-            bottlePriceInput.value = 0;
+            if (saleCat.value !== 'Bakhoor') bottlePriceInput.value = 0;
             bottlePriceInput.style.borderColor = "";
         }
 
@@ -1885,7 +1931,9 @@
 
         let perUnit = 0;
 
-        if (isFromBatch) {
+        if (saleCat.value === 'Bakhoor') {
+            perUnit = ProductUnits.bakhoorCost(stockCache, productName.value, qtySize);
+        } else if (isFromBatch) {
             const batchName = document.getElementById('productName').value;
             const batch = stockCache.find(s => s.category === "Finished Product" && s.name === batchName && s.size_ml > 0);
             if (batch) {
@@ -1922,8 +1970,21 @@
     function changeSaleMode(){
         const type = saleCat.value;
         saleSize.innerHTML = "";
+        const bakhoor = type === 'Bakhoor';
+        bottlePriceInput.value = 0;
+        const batchToggle = document.getElementById('isFromBatch');
+        batchToggle.disabled = bakhoor;
+        if (bakhoor) batchToggle.checked = false;
+        document.getElementById('productName').setAttribute('list', bakhoor ? 'bakhoorList' : batchToggle.checked ? 'batchList' : 'oilList');
+        document.getElementById('productName').placeholder = bakhoor ? 'Bakhoor Name' : batchToggle.checked ? 'Select Batch Name' : 'Attar/Perfume Name';
+        bottleCat.disabled = bakhoor;
+        if (bakhoor) bottleCat.value = 'NA';
+        bottlePriceInput.placeholder = bakhoor ? 'Container cost per pack (optional)' : 'Bottle Price (Manual Override)';
         
-        if(type === "Attar"){
+        if(bakhoor) {
+            saleSize.innerHTML = ProductUnits.saleSizes.map(size => `<option value="${size}">${size} g</option>`).join('');
+            document.getElementById('oilPercent').style.display = 'none';
+        } else if(type === "Attar"){
             [3,6,8,12,25].forEach(v=>{ saleSize.innerHTML += `<option value="${v}">${v} ml</option>`; });
             document.getElementById('oilPercent').style.display = "none";
         } else {
@@ -1952,7 +2013,11 @@
             purchaseDate: document.getElementById("stockPurchaseDate")?.value,
             oilPercent: Number(document.getElementById("oilPercent")?.value || 0)
         };
-        await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        const validation = ProductUnits.validate(body, 'stock');
+        if (validation) { hideLoading(); return alert(validation); }
+        const response = await ERP.request("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        const result = await response.json();
+        if (!response.ok || !result.success) { hideLoading(); return alert(result.message || 'Could not save stock'); }
         
         const msg = document.getElementById("stockMsg");
         msg.innerText = "Stock added successfully!";
@@ -1982,7 +2047,7 @@
             return;
         }
 
-        await fetch("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        await ERP.request("/api/stock",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
         
         const msg = document.getElementById("batchMsg");
         msg.innerText = "Batch created successfully!";
@@ -2019,7 +2084,10 @@
         }
         const isAcquisitionCost = document.getElementById('isAcquisitionCost').checked;
 
-        const response = await fetch("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        const validation = ProductUnits.validate({ category: cat, size_ml: Number(sz), units: Number(document.getElementById('saleUnits').value) }, 'sale');
+        if (validation) { hideLoading(); return alert(validation); }
+
+        const response = await ERP.request("/api/sales",{method:"POST", headers:{'Content-Type':'application/json'}, body:JSON.stringify({
             productName:document.getElementById('productName').value, 
             category: cat, 
             customerName,
@@ -2067,7 +2135,7 @@
             email: document.getElementById('dealerEmail').value.trim(),
             address: document.getElementById('dealerAddress').value.trim()
         };
-        const response = await fetch('/api/dealers', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const response = await ERP.request('/api/dealers', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
         const result = await response.json();
         const message = document.getElementById('dealerMsg');
         message.className = `text-xs font-medium ${response.ok && result.success ? 'text-emerald-600' : 'text-red-600'}`;
@@ -2103,7 +2171,7 @@
         const amount = Number(raw);
         if (!Number.isFinite(amount) || amount < 0 || amount > Number(row.total)) return alert('Enter an amount between 0 and the invoice total.');
         const paymentStatus = amount <= 0 ? 'UNPAID' : amount + 0.01 >= Number(row.total) ? 'PAID' : 'PARTIAL';
-        const response = await fetch('/api/sales/bulk-payment', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: row.itemIds, paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? amount : undefined }) });
+        const response = await ERP.request('/api/sales/bulk-payment', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ids: row.itemIds, paymentStatus, amountReceived: paymentStatus === 'PARTIAL' ? amount : undefined }) });
         const result = await response.json();
         if (!response.ok || !result.success) return alert(result.message || 'Could not record payment');
         await loadAll();
@@ -2139,7 +2207,11 @@
         renderAcquisition();
     }
 
-    async function loadAll() {
+    function loadAll() {
+        if (!loadPromise) loadPromise = loadAllData().finally(() => { loadPromise = null; });
+        return loadPromise;
+    }
+    async function loadAllData() {
         try {
             showLoading();
             const [stockRes, salesRes, dashRes, dealersRes, dealerFinanceRes, receivablesRes, acquisitionRes] = await Promise.all([
@@ -2160,6 +2232,9 @@
             const receivables = await receivablesRes.json();
             const acquisition = await acquisitionRes.json();
 
+            if (![stock, salesData, dealers, dealerFinance, receivables].every(Array.isArray) || typeof dash?.totalInvestment !== 'number' || !Array.isArray(acquisition?.rows)) {
+                throw new Error('ERP returned incomplete data. Previous values have been retained. Please retry.');
+            }
             stockCache = Array.isArray(stock) ? stock : [];
             salesCache = Array.isArray(salesData) ? salesData : [];
             const safeDash = dash && typeof dash.totalInvestment === 'number' ? dash : { totalInvestment: 0, totalSales: 0, totalProfit: 0, roi: 0, acquisitionCost: 0, pendingTotal: 0 };
@@ -2213,15 +2288,17 @@
             const years = [...new Set(salesCache.map(s => new Date(s.saleDate).getFullYear()))];
             yearSelect.innerHTML = `<option value="ALL">All Years</option>` + years.map(y => `<option value="${y}">${y}</option>`).join("");
             hideLoading();
+            return true;
         } catch (err) {
-            console.error(err);
-            showLoading();
-            document.getElementById('loadingIndicator').innerText =
-                'Server is still waking up. Pull to refresh and try again.';
+            connectionFailed(err);
+            return false;
         }
     }
 
     function buildAnalytics(stock, salesData) {
+        // Seed from the complete dataset so date filters do not reassign colours.
+        analyticsColors.seed('channels', salesData.map(s => s.referenceSource || 'Other'));
+        analyticsColors.seed('inventory', stock.map(s => s.category || 'Misc'));
         const months = {};
         const productStats = {};
         const revenueStats = {}; 
@@ -2321,14 +2398,14 @@
         if (channelChart) channelChart.destroy();
         channelChart = new Chart(channelChartCanvas, {
             type: "doughnut",
-            data: { labels: Object.keys(channelStats), datasets: [{ data: Object.values(channelStats), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6'] }] },
+            data: { labels: Object.keys(channelStats), datasets: [{ data: Object.values(channelStats), backgroundColor: analyticsColors.colors('channels', Object.keys(channelStats)), borderColor: '#ffffff', borderWidth: 2, hoverOffset: 6 }] },
             options: { responsive: true, plugins: { legend: { position: "bottom" } } }
         });
 
         if (inventoryPieChart) inventoryPieChart.destroy();
         inventoryPieChart = new Chart(document.getElementById('inventoryPieCanvas'), {
             type: "pie",
-            data: { labels: Object.keys(inventoryStats), datasets: [{ data: Object.values(inventoryStats), backgroundColor: ['#14b8a6', '#f43f5e', '#8b5cf6', '#eab308', '#3b82f6', '#f97316', '#64748b'] }] },
+            data: { labels: Object.keys(inventoryStats), datasets: [{ data: Object.values(inventoryStats), backgroundColor: analyticsColors.colors('inventory', Object.keys(inventoryStats)), borderColor: '#ffffff', borderWidth: 2, hoverOffset: 6 }] },
             options: { responsive: true, plugins: { legend: { position: "right" } } }
         });
     }
@@ -2444,7 +2521,7 @@
             }
             
             let desc = sale.productName || 'Unknown Item';
-            if (sale.size_ml) desc += ` ${sale.size_ml} ml`;
+            if (sale.size_ml) desc += ` ${ProductUnits.formatSize(sale)}`;
 
             return [
                 i + 1,
@@ -2547,10 +2624,10 @@
         doc.save(`Invoice_${invoiceNumber}.pdf`);
     }
 
-    async function logout(){ await fetch("/api/logout",{method:"POST"}); window.location.href="/login.html"; }
+    async function logout(){ await ERP.request("/api/logout",{method:"POST"}); window.location.href="/login.html"; }
 
     changeSaleMode();
-    loadAll(); 
+    reconnectERP(); 
 </script>
 </body>
 </html>

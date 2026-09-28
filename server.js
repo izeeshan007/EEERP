@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 const session = require("express-session");
+const { COOKIE_NAME, sessionPolicy, sessionOptions, enforceSessionLifetime, createLoginHandler, apiErrorHandler } = require("./session-runtime");
+const path = require("node:path");
 const connectMongo = require("connect-mongo");
 const MongoStore = connectMongo.MongoStore || connectMongo.default || connectMongo;
 const dns = require("dns").promises;
@@ -12,12 +14,18 @@ const { promisify } = require("util");
 const Stock = require("./models/Stock");
 const Sale = require("./models/Sale");
 const Dealer = require("./models/Dealer");
+const ProductUnits = require("./public/product-units");
 
 const app = express();
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 3000);
 const isMainModule = require.main === module;
-const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
+// Both Render and Railway expose platform-specific variables. Treat either as
+// production so session cookies and required configuration behave identically
+// when the backend is moved between providers.
+const isProduction = process.env.NODE_ENV === "production" ||
+ process.env.RENDER === "true" ||
+ Boolean(process.env.RAILWAY_ENVIRONMENT_NAME);
 const sessionSecret = String(process.env.SESSION_SECRET || (isProduction ? "" : "eeerp-local-session-secret-change-me"));
 
 if (!sessionSecret) {
@@ -54,42 +62,56 @@ app.use(express.json());
 
 if (isProduction) app.set("trust proxy", 1);
 
+const policy = sessionPolicy();
 const sessionMongoUri = String(process.env.MONGO_DIRECT_URI || process.env.MONGO_URI || "").trim();
 let productionSessionStore;
-if (isMainModule && isProduction && sessionMongoUri) {
+// Use the already-resolved Mongoose connection for sessions too. This avoids
+// a second SRV lookup and keeps local sessions persistent across restarts.
+if (isMainModule && sessionMongoUri) {
+ const clientPromise = new Promise(resolve => {
+  if (mongoose.connection.readyState === 1) resolve(mongoose.connection.getClient());
+  else mongoose.connection.once("connected", () => resolve(mongoose.connection.getClient()));
+ });
  productionSessionStore = MongoStore.create({
-  mongoUrl: sessionMongoUri,
-  collectionName: "eeerp_sessions",
-  ttl: 60 * 60 * 12,
-  autoRemove: "native",
-  touchAfter: 60 * 60
+  clientPromise, collectionName: "eeerp_sessions",
+  ttl: Math.ceil(policy.idleMs / 1000), autoRemove: "native", touchAfter: 0
  });
- productionSessionStore.on("error", error => {
-  console.error("EEERP session store error:", error);
- });
+ productionSessionStore.on("error", error => console.error("EEERP session store unavailable:", error.message));
 }
-
-app.use(session({
- // Keep the middleware operational long enough to return a useful JSON
- // configuration error instead of Express' HTML 500 page.
+const sessionMiddleware = session(sessionOptions({
  secret: sessionSecret || "eeerp-invalid-production-configuration",
- store: productionSessionStore,
- resave: false,
- saveUninitialized: false,
- cookie: {
-  secure: isProduction,
-  sameSite: "lax",
-  httpOnly: true,
-  maxAge: 1000 * 60 * 60 * 12
- }
+ store: productionSessionStore, production: isProduction, policy
 }));
 
-app.use((req, res, next) => {
- if (!sessionSecret && req.path.startsWith("/api/")) {
-  return res.status(503).json({ success: false, message: "EEERP is missing SESSION_SECRET in its Render environment." });
- }
- next();
+// Static assets, health probes and keyed integration requests never need to
+// wait for a cookie/session database lookup.
+app.use("/api", (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
+app.get(["/health", "/api/health"], healthResponse);
+app.get("/api/ready", (_req, res) => {
+ const ready = mongoose.connection.readyState === 1 && Boolean(sessionSecret) &&
+  (!isProduction || Boolean(productionSessionStore));
+ res.status(ready ? 200 : 503).json({ ready });
 });
+app.use(express.static(path.join(__dirname, "public"), { index: false }));
+app.use((req, res, next) => {
+ if (req.path.startsWith("/api/integrations/")) return next();
+ if (!sessionSecret || (isProduction && isMainModule && !productionSessionStore)) {
+  return res.status(503).json({ success: false, code: "SESSION_CONFIGURATION", message: "EEERP needs a stable SESSION_SECRET and MongoDB configuration." });
+ }
+ if (productionSessionStore && mongoose.connection.readyState !== 1) {
+  return res.status(503).json({ success: false, code: "SESSION_UNAVAILABLE", message: "The database is reconnecting. Your saved session has not been cleared." });
+ }
+ sessionMiddleware(req, res, error => {
+  if (error) {
+   console.error("EEERP session read failed:", error.message);
+   return res.status(503).json({ success: false, code: "SESSION_UNAVAILABLE", message: "Session service is temporarily unavailable. Please retry." });
+  }
+  if (!req.session) return res.status(503).json({ success: false, code: "SESSION_UNAVAILABLE", message: "Session storage is reconnecting. Please retry." });
+  return next();
+ });
+});
+const sessionLifetime = enforceSessionLifetime(policy);
+app.use((req, res, next) => req.path.startsWith("/api/integrations/") ? next() : sessionLifetime(req, res, next));
 
 /* ================= DATABASE ================= */
 
@@ -153,7 +175,7 @@ async function connectDatabase() {
    databaseState = "connected";
    databaseError = "";
    console.log("MongoDB Connected");
-   await backfillFinanceFields();
+   backfillFinanceFields().catch(error => console.error("Finance backfill failed:", error.message));
    return;
   } catch (error) {
    databaseState = "disconnected";
@@ -165,6 +187,7 @@ async function connectDatabase() {
 }
 
 mongoose.connection.on("disconnected", () => { databaseState = "disconnected"; });
+mongoose.connection.on("connected", () => { databaseState = "connected"; databaseError = ""; });
 
 function requireDatabase(req, res, next) {
  if (mongoose.connection.readyState === 1) return next();
@@ -177,19 +200,19 @@ function requireDatabase(req, res, next) {
 
 function healthResponse(req, res) {
  const connected = mongoose.connection.readyState === 1;
- res.status(200).json({
+ res.set("Cache-Control", "no-store").status(200).json({
   success: connected,
   ready: connected,
   service: "eeerp",
   port: PORT,
   database: databaseState,
-  sessionStore: isProduction ? (productionSessionStore ? "mongodb" : "unconfigured") : "memory",
-  error: connected ? undefined : databaseError
+  sessionStore: productionSessionStore ? "mongodb" : (isProduction ? "unconfigured" : "memory"),
+  sessionIdleDays: policy.idleMs / 86400000,
+  sessionMaxDays: policy.absoluteMs / 86400000,
+  version: "20260923-login-order-fix",
+  error: connected ? undefined : "Database connection is not ready."
  });
 }
-
-// Keep Render's health check responsive while MongoDB is waking up.
-app.get(["/health", "/api/health"], healthResponse);
 
 app.use(["/api/stock", "/api/sales", "/api/invoices", "/api/dashboard", "/api/dealers", "/api/customers", "/api/receivables", "/api/dealer-finances", "/api/acquisition-analytics"], requireDatabase);
 app.use("/api/integrations", requireDatabase);
@@ -513,36 +536,16 @@ app.post("/api/integrations/ecommerce/sales", integrationAuth, async (req, res) 
 
 /* ================= AUTH ROUTES ================= */
 
-app.post("/api/login", (req,res)=>{
- const { username, password } = req.body;
- if(
- username === process.env.ADMIN_USER &&
- password === process.env.ADMIN_PASS
- ){
-  return req.session.regenerate(regenerateError => {
-   if (regenerateError) {
-    console.error("EEERP login session regeneration failed:", regenerateError);
-    return res.status(500).json({success:false, message:"Could not start the admin session."});
-   }
-   req.session.authenticated = true;
-   req.session.save(saveError => {
-    if (saveError) {
-     console.error("EEERP login session save failed:", saveError);
-     return res.status(500).json({success:false, message:"Could not save the admin session."});
-    }
-    return res.json({success:true});
-   });
-  });
- }
- res.json({success:false, message:"Invalid credentials"});
-});
+app.post("/api/login", createLoginHandler());
 
 app.get("/api/check-auth",(req,res)=>{
  res.json({authenticated: !!req.session.authenticated});
 });
 
 app.post("/api/logout",(req,res)=>{
- req.session.destroy(()=>{
+ req.session.destroy(error=>{
+  if(error) return res.status(503).json({success:false,message:"Could not sign out. Please retry."});
+  res.clearCookie(COOKIE_NAME, { path: "/", secure: isProduction, httpOnly: true, sameSite: "lax" });
   res.json({success:true});
  });
 });
@@ -567,7 +570,7 @@ app.get("/",(req,res)=>{
  }
 });
 
-app.use(express.static("public"));
+
 
 /* ================= STOCK ================= */
 
@@ -576,9 +579,10 @@ app.post("/api/stock", requireAuth, async(req,res)=>{
  if(!s.name || s.name.trim()==="")
   return res.json({success:false,message:"Name required"});
 
- s.pricePerUnit =
-   s.size_ml>0 ? s.cost/s.size_ml :
-   s.units>0 ? s.cost/s.units : 0;
+ const validation = ProductUnits.validate(s, 'stock');
+ if (validation) return res.status(400).json({ success: false, message: validation });
+ s.quantityUnit = ProductUnits.unit(s);
+ s.pricePerUnit = ProductUnits.stockPricePerUnit(s);
 
  const data=await Stock.create(s);
  res.json({success:true,message:"Stock Added",data});
@@ -590,9 +594,13 @@ app.get("/api/stock", requireAuth, async(req,res)=>{
 
 app.put("/api/stock/:id", requireAuth, async(req,res)=>{
  let s=req.body;
- s.pricePerUnit =
-   s.size_ml>0 ? s.cost/s.size_ml :
-   s.units>0 ? s.cost/s.units : 0;
+ const oldStock = await Stock.findById(req.params.id);
+ if (!oldStock) return res.status(404).json({ success: false, message: 'Stock not found' });
+ const effective = { ...oldStock.toObject(), ...s };
+ const validation = ProductUnits.validate(effective, 'stock');
+ if (validation) return res.status(400).json({ success: false, message: validation });
+ s.quantityUnit = ProductUnits.unit(effective);
+ s.pricePerUnit = ProductUnits.stockPricePerUnit(effective);
 
  const data=await Stock.findByIdAndUpdate(
   req.params.id,s,{new:true}
@@ -801,6 +809,9 @@ app.get("/api/acquisition-analytics", requireAuth, async (req, res) => {
 
 app.post("/api/sales", requireAuth, async(req,res)=>{
  let s={ ...req.body };
+ const validation = ProductUnits.validate(s, 'sale');
+ if (validation) return res.status(400).json({ success: false, message: validation });
+ s.quantityUnit = ProductUnits.unit(s);
  if (s.counterpartyType === "dealer") {
   const dealer = mongoose.isValidObjectId(s.dealerId) ? await Dealer.findById(s.dealerId) : null;
   if (!dealer || dealer.active === false) return res.status(400).json({ success: false, message: "Select an active dealer" });
@@ -841,6 +852,10 @@ app.put("/api/sales/:id", requireAuth, async(req,res)=>{
  
  const oldSale = await Sale.findById(req.params.id);
  if (!oldSale) return res.status(404).json({success: false, message: "Sale not found"});
+ const effective = { ...oldSale.toObject(), ...s };
+ const validation = ProductUnits.validate(effective, 'sale');
+ if (validation) return res.status(400).json({ success: false, message: validation });
+ s.quantityUnit = ProductUnits.unit(effective);
  if (s.counterpartyType === "dealer" || (!s.counterpartyType && oldSale.counterpartyType === "dealer")) {
   const dealerId = s.dealerId || oldSale.dealerId;
   const dealer = mongoose.isValidObjectId(dealerId) ? await Dealer.findById(dealerId) : null;
@@ -1083,17 +1098,14 @@ app.get("/api/dashboard", requireAuth, async(req,res)=>{
  });
 });
 
+// Keep unexpected API failures as JSON, with a reference that matches the logs.
+app.use(apiErrorHandler);
+
 if (isMainModule) {
  app.listen(PORT, () => console.log(`EEERP running on http://localhost:${PORT}`));
  connectDatabase();
- const keepAliveUrl = String(process.env.KEEP_ALIVE_URL || "").trim().replace(/\/$/, "");
- if (keepAliveUrl) {
-  const timer = setInterval(() => {
-   fetch(`${keepAliveUrl}/api/health`, { signal: AbortSignal.timeout(10_000) })
-    .catch(error => console.warn("EEERP keep-alive check failed:", error.message));
-  }, Math.max(5, Number(process.env.KEEP_ALIVE_MINUTES || 10)) * 60 * 1000);
-  timer.unref();
- }
+ // Hosting availability is controlled by the instance plan, not self-pings.
+
 }
 
 module.exports = {

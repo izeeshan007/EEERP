@@ -9,7 +9,9 @@ const StockSchema = new mongoose.Schema({
   designerName: String,
   supplier: String,
 
+  // Legacy shared quantity field: grams for Bakhoor/Aroma Chemical, ml for liquids.
   size_ml: Number,
+  quantityUnit: { type: String, enum: ['g', 'ml'] },
   units: Number,
 
   cost: Number,
