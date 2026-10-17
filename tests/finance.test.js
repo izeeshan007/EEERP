@@ -13,6 +13,23 @@ test("invoice receivable includes discounts, taxes and shipping", () => {
   assert.equal(total, 1112);
 });
 
+test("repricing an invoice line keeps the total discount and redistributes it", () => {
+  const items = [
+    { soldPrice: 1500, invoiceDiscount: 300, manufacturingCost: 500, distributorMargin: 50 },
+    { soldPrice: 500, invoiceDiscount: 300, manufacturingCost: 200, distributorMargin: 0 }
+  ];
+  finance.applyInvoiceDiscount(items);
+  assert.equal(items[0].discount, 225);
+  assert.equal(items[1].discount, 75);
+  assert.equal(items.reduce((sum, item) => sum + item.discount, 0), 300);
+  assert.equal(items[0].profit, 725);
+  assert.equal(items[1].profit, 225);
+
+  finance.distributeReceivedAmount(items, 850);
+  assert.equal(items.reduce((sum, item) => sum + item.amountReceived, 0), 850);
+  assert.equal(items[0].paymentStatus, "PARTIAL");
+});
+
 test("payment status distinguishes unpaid, partial and paid", () => {
   assert.equal(finance.derivePaymentStatus(0, 1000), "UNPAID");
   assert.equal(finance.derivePaymentStatus(250, 1000), "PARTIAL");
