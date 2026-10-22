@@ -1,0 +1,11 @@
+# EEERP is a static frontend in public/. Keep API calls same-origin on Netlify
+# and proxy them to the existing Express backend. This preserves every existing
+# fetch("/api/...") request and the cookie-based admin session.
+[build]
+  publish = "public"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://eeerp.onrender.com/api/:splat"
+  status = 200
+  force = true

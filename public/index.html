@@ -668,6 +668,10 @@
             <div class="space-y-3">
                 <h3 class="text-sm font-bold text-indigo-900 uppercase mb-2 border-b pb-1">Customer Info</h3>
                 <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase">Name on Invoice</label>
+                    <input id="inv_customer_name" type="text" class="w-full p-2 border border-slate-200 rounded-lg mt-1 text-sm bg-slate-50 focus:border-indigo-500 focus:bg-white outline-none" placeholder="Customer name">
+                </div>
+                <div>
                     <label class="text-xs font-bold text-slate-500 uppercase">Billing Address</label>
                     <textarea id="inv_address" rows="2" class="w-full p-2 border border-slate-200 rounded-lg mt-1 text-sm bg-slate-50 focus:border-indigo-500 focus:bg-white outline-none placeholder:text-slate-400" placeholder="123 Main St, Mumbai..."></textarea>
                 </div>
@@ -1302,6 +1306,7 @@
                     invoiceMap[s.invoiceNumber] = {
                         invoiceNumber: s.invoiceNumber,
                         customerName: s.customerName,
+                        invoiceCustomerName: s.invoiceCustomerName || "",
                         subTotal: 0,
                         received: 0,
                         items: [],
@@ -1325,7 +1330,7 @@
         const displayList = Object.values(invoiceMap)
             .filter(item => 
                 item.invoiceNumber.toLowerCase().includes(invFilter) && 
-                (item.customerName || "").toLowerCase().includes(custFilter)
+                (item.invoiceCustomerName || item.customerName || "").toLowerCase().includes(custFilter)
             )
             .sort((a,b) => new Date(b.saleDate) - new Date(a.saleDate));
 
@@ -1335,6 +1340,8 @@
             let taxable = item.subTotal - item.invoiceDiscount;
             let taxPct = item.cgstPercent + item.sgstPercent + item.igstPercent;
             let grandTotal = taxable + (taxable * (taxPct / 100));
+            const displayName = item.invoiceCustomerName || item.customerName || "Cash Customer";
+            const safeDisplayName = String(displayName).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
             const pending = Math.max(0, grandTotal - item.received);
             const paymentStatus = item.received <= 0 ? 'UNPAID' : pending <= 0.01 ? 'PAID' : 'PARTIAL';
             totalFilteredInvoices += grandTotal;
@@ -1342,7 +1349,7 @@
             return `
             <tr onclick='openInvoiceModal("${item.invoiceNumber}")'>
                 <td class="py-3 font-bold text-amber-600">${item.invoiceNumber}</td>
-                <td class="py-3 font-medium text-slate-600">${item.customerName||"Cash Customer"}</td>
+                <td class="py-3 font-medium text-slate-600">${safeDisplayName}</td>
                 <td class="py-3 text-slate-500 text-sm">${new Date(item.saleDate).toLocaleDateString()}</td>
                 <td class="py-3 text-center">
                     <span class="text-[9px] font-bold px-2 py-1 rounded ${paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-700' : paymentStatus === 'PARTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}" title="Received ₹${item.received.toFixed(2)} · Pending ₹${pending.toFixed(2)}">${paymentStatus}</span>
@@ -1442,7 +1449,8 @@
         
         const first = items[0];
         document.getElementById('invoiceItemsTitle').innerText = `Invoice Details: ${currentInvoiceGroup}`;
-        document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.customerName || 'N/A'}`;
+        document.getElementById('invoiceItemsCustomer').innerText = `Customer: ${first.invoiceCustomerName || first.customerName || 'N/A'}`;
+        document.getElementById('inv_customer_name').value = first.invoiceCustomerName || first.customerName || '';
         
         let prefAddress = first.customerAddress || "";
         let prefPhone = first.customerPhone || "";
@@ -1619,6 +1627,7 @@
 
         const customerAddress = document.getElementById('inv_address').value;
         const customerPhone = document.getElementById('inv_phone').value;
+        const invoiceCustomerName = document.getElementById('inv_customer_name').value.trim();
         const invoiceDiscount = Number(document.getElementById('inv_discount').value) || 0;
         
         const cgstPercent = document.getElementById('chk_cgst').checked ? (Number(document.getElementById('inv_cgst').value) || 0) : 0;
@@ -1628,7 +1637,7 @@
         showLoading();
         const response = await fetch(`/api/invoices/${encodeURIComponent(currentInvoiceGroup)}`, {
             method: "PUT", headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone })
+            body: JSON.stringify({ invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone, invoiceCustomerName })
         });
         const result = await response.json();
         if (!response.ok || !result.success) {
@@ -2413,26 +2422,49 @@
 
         const doc = new window.jspdf.jsPDF();
         const img = new Image();
-        img.src = '/logo.png';
+        img.src = '/logo.webp';
         img.onload = function() {
-            doc.addImage(img, 'PNG', 15, 12, 28, 28);
-            generatePDFText(doc, items, currentInvoiceGroup, true);
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const context = canvas.getContext('2d');
+                if (!context || !canvas.width || !canvas.height) throw new Error('Could not prepare invoice logo');
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                generatePDFText(doc, items, currentInvoiceGroup, {
+                    dataUrl: canvas.toDataURL('image/png'),
+                    width: canvas.width,
+                    height: canvas.height
+                });
+            } catch (error) {
+                console.error('Failed to prepare invoice logo', error);
+                generatePDFText(doc, items, currentInvoiceGroup, null);
+            }
         };
         img.onerror = function() {
             console.error('Failed to load logo image');
-            generatePDFText(doc, items, currentInvoiceGroup, false);
+            generatePDFText(doc, items, currentInvoiceGroup, null);
         };
     }
 
-    function generatePDFText(doc, sales, invoiceNumber, hasLogo) {
+    function generatePDFText(doc, sales, invoiceNumber, logoImage) {
         const pageWidth = doc.internal.pageSize.getWidth();
         const gold = [212, 175, 55]; 
-        const darkBg = [24, 24, 27]; 
         const textDark = [50, 50, 50]; 
         const firstSale = sales[0];
+        const hasLogo = Boolean(logoImage && logoImage.dataUrl && logoImage.width && logoImage.height);
         
         doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, pageWidth, 50, 'F');
+        if (hasLogo) {
+            const maxLogoSize = 28;
+            const logoScale = Math.min(maxLogoSize / logoImage.width, maxLogoSize / logoImage.height);
+            const logoWidth = logoImage.width * logoScale;
+            const logoHeight = logoImage.height * logoScale;
+            doc.addImage(logoImage.dataUrl, 'PNG', 15 + (maxLogoSize - logoWidth) / 2, 11 + (maxLogoSize - logoHeight) / 2, logoWidth, logoHeight);
+        }
         
         doc.setFont("times", "bold");
         doc.setFontSize(26);
@@ -2472,7 +2504,7 @@
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(firstSale.customerName || 'Cash Customer', 14, 64);
+        doc.text(firstSale.invoiceCustomerName || firstSale.customerName || 'Cash Customer', 14, 64);
         
         let currentYOffset = 69;
         if (firstSale.customerPhone) {
@@ -2486,10 +2518,19 @@
         }
 
         let startTableY = Math.max(90, currentYOffset + 8);
-        let subTotal = 0;
+        const subTotal = sales.reduce((sum, sale) => sum + Number(sale.soldPrice || 0), 0);
+        const discount = Math.min(subTotal, Math.max(0, Number(firstSale.invoiceDiscount || 0)));
+        const discountCents = Math.round(discount * 100);
+        let allocatedDiscountCents = 0;
+        let cumulativeGross = 0;
         const tableBody = sales.map((sale, i) => {
-            const itemTotal = sale.soldPrice || 0;
-            subTotal += itemTotal;
+            const itemTotal = Number(sale.soldPrice || 0);
+            cumulativeGross += itemTotal;
+            const cumulativeDiscountCents = i === sales.length - 1
+                ? discountCents
+                : Math.round((subTotal > 0 ? cumulativeGross / subTotal * discountCents : 0));
+            const lineDiscount = (cumulativeDiscountCents - allocatedDiscountCents) / 100;
+            allocatedDiscountCents = cumulativeDiscountCents;
             
             let prodType = sale.category || sale.saleCat;
             if (!prodType) {
@@ -2505,13 +2546,14 @@
                 desc,
                 prodType, 
                 sale.units || 1,
-                `Rs ${itemTotal.toFixed(2)}`
+                `Rs ${itemTotal.toFixed(2)}`,
+                `Rs ${Math.max(0, itemTotal - lineDiscount).toFixed(2)}`
             ];
         });
 
         doc.autoTable({
             startY: startTableY,
-            head: [['#', 'Item Description', 'Type', 'Qty', 'Gross Total']],
+            head: [['#', 'Item Description', 'Type', 'Qty', 'Gross Total', 'Discounted Price']],
             body: tableBody,
             theme: 'plain',
             headStyles: { fillColor: [250, 250, 250], textColor: gold, fontStyle: 'bold', lineWidth: 0.1, lineColor: [220, 220, 220] },
@@ -2520,14 +2562,14 @@
                 0: { cellWidth: 10 },
                 2: { cellWidth: 25, halign: 'center' },
                 3: { cellWidth: 15, halign: 'center' },
-                4: { halign: 'right' }
+                4: { halign: 'right' },
+                5: { halign: 'right' }
             },
             margin: { left: 14, right: 14 }
         });
 
         const finalY = doc.lastAutoTable.finalY || startTableY;
         
-        let discount = firstSale.invoiceDiscount || 0;
         let cgstPct = firstSale.cgstPercent || 0;
         let sgstPct = firstSale.sgstPercent || 0;
         let igstPct = firstSale.igstPercent || 0;
@@ -2540,8 +2582,8 @@
 
         let sumY = finalY + 12;
 
-        let boxHeight = 15; 
-        if (discount > 0) boxHeight += 12;
+        let boxHeight = 21;
+        if (discount > 0) boxHeight += 6;
         if (cgstPct > 0) boxHeight += 6;
         if (sgstPct > 0) boxHeight += 6;
         if (igstPct > 0) boxHeight += 6;
@@ -2562,10 +2604,10 @@
         
         if (discount > 0) {
             doc.text("Discount:", labelX, sumY); doc.text(`- Rs ${discount.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6;
-            doc.setFont("helvetica", "bold");
-            doc.text("Taxable Value:", labelX, sumY); doc.text(`Rs ${taxableAmt.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6;
-            doc.setFont("helvetica", "normal");
         }
+        doc.setFont("helvetica", "bold");
+        doc.text("Taxable Value:", labelX, sumY); doc.text(`Rs ${taxableAmt.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6;
+        doc.setFont("helvetica", "normal");
         
         if (cgstPct > 0) { doc.text(`CGST (${cgstPct}%):`, labelX, sumY); doc.text(`+ Rs ${cgstAmt.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6; }
         if (sgstPct > 0) { doc.text(`SGST (${sgstPct}%):`, labelX, sumY); doc.text(`+ Rs ${sgstAmt.toFixed(2)}`, rightAlignX, sumY, { align: "right" }); sumY += 6; }

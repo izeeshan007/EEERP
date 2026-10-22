@@ -1039,7 +1039,7 @@ app.post("/api/sales/remove-from-invoice", requireAuth, async(req,res)=>{
 });
 
 app.put("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
-  const { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone } = req.body;
+  const { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone, invoiceCustomerName } = req.body;
   
   const existing = await Sale.findOne({ invoiceNumber: req.params.invoiceNumber });
   if (!existing) return res.status(404).json({ success: false, message: "Invoice not found" });
@@ -1047,7 +1047,7 @@ app.put("/api/invoices/:invoiceNumber", requireAuth, async(req,res)=>{
   
   await Sale.updateMany(
       { invoiceNumber: req.params.invoiceNumber },
-      { $set: { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone, revisionCount: newRev } }
+      { $set: { invoiceDiscount, cgstPercent, sgstPercent, igstPercent, customerAddress, customerPhone, ...(invoiceCustomerName !== undefined ? { invoiceCustomerName: String(invoiceCustomerName).trim() } : {}), revisionCount: newRev } }
   );
   
   await recalculateInvoiceDiscount(req.params.invoiceNumber);

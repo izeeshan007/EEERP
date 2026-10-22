@@ -14,6 +14,7 @@ const SaleSchema = new mongoose.Schema({
   size_ml: Number,
   units: Number,
   customerName: String,
+  invoiceCustomerName: { type: String, default: "" },
   counterpartyType: { type: String, enum: ["customer", "dealer"], default: "customer", index: true },
   counterpartyKey: { type: String, default: "", index: true },
   dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", default: null, index: true },
